@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://mevorahde.github.io/sitemap.xml
