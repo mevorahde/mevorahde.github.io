@@ -1,9 +1,9 @@
 # Asset provenance
 
-Only the three project screenshots and one social-preview image listed below
-are approved for this local portfolio draft. Each project screenshot was copied
-byte-for-byte from a clean checkout at the stated public commit. The social card
-was generated specifically for this portfolio and processed as documented below.
+Only the three project screenshots, one social-preview image, and favicon system
+listed below are approved for this portfolio site. Each project screenshot was
+copied byte-for-byte from a clean checkout at the stated public commit. The
+social card and favicon artwork were created specifically for this portfolio.
 
 The website's MIT License covers original website code only. These screenshots
 retain their source-project provenance and licensing context; their inclusion
@@ -18,7 +18,7 @@ does not imply that they inherit the website-code license.
 - Original SHA-256: `402633c3a545041972ca270e3eb298cbe596c7658a4d7e4ae83406bd5618bcf2`
 - Copied SHA-256: `402633c3a545041972ca270e3eb298cbe596c7658a4d7e4ae83406bd5618bcf2`
 - Dimensions: 895 × 625 pixels
-- Reuse decision: Approved by the project owner for this portfolio draft. The image visibly identifies its accounts as synthetic. No broader or separate asset-license claim is made here.
+- Reuse decision: Approved by the project owner for this portfolio. The image visibly identifies its accounts as synthetic. No broader or separate asset-license claim is made here.
 
 ## Morning App Launcher interface
 
@@ -29,7 +29,7 @@ does not imply that they inherit the website-code license.
 - Original SHA-256: `ebe9f6e9294c17d4b53eee2f42ad3c024f3a34a4b51bea300ca93fe9a393c911`
 - Copied SHA-256: `ebe9f6e9294c17d4b53eee2f42ad3c024f3a34a4b51bea300ca93fe9a393c911`
 - Dimensions: 824 × 524 pixels
-- Reuse decision: Approved by the project owner for this portfolio draft. The screenshot contains a harmless example application name. No separate asset-license claim is made here.
+- Reuse decision: Approved by the project owner for this portfolio. The screenshot contains a harmless example application name. No separate asset-license claim is made here.
 
 ## Hyphy Oregon Conference Generator terminal
 
@@ -54,5 +54,15 @@ does not imply that they inherit the website-code license.
 - Intended use: Open Graph and LinkedIn social preview for <https://mevorahde.github.io/>. The same image is also declared for compatible large-image social cards.
 - Ownership and approval: David Mevorah owns the generated artwork and approves its use in this portfolio.
 
-No icons, workbook material, video, or other binary asset is included in this
-draft.
+## David Mevorah portfolio favicon system
+
+- Artwork: Created specifically for David Mevorah’s portfolio as an original deterministic vector design. No third-party artwork was incorporated.
+- Design: A compact abstract DM systems mark using a deep-navy rounded square, warm-neutral D frame, muted-teal interconnected M, and restrained amber node.
+- Source asset: `favicon.svg`; standalone SVG, 64 × 64 viewBox, SHA-256 `64b482e7290a1b35820b1ce3f66d21c1e622eac6683ca8a755f7545e55faf297`
+- ICO derivative: `favicon.ico`; ICO with exactly three embedded 8-bit RGBA PNG frames at 16 × 16, 32 × 32, and 48 × 48 pixels; SHA-256 `6e7c912558d3aa69f6acd7c5d133ee6ead3cf75709b29f4f32651cdc52783df8`
+- Apple touch derivative: `apple-touch-icon.png`; 180 × 180 pixels, 8-bit RGBA PNG; SHA-256 `d5f30e9592e361eb59ceb38e586d7ff3c6e7943400825e848a08f5d64892a7f0`
+- Derivation: The ICO and PNG were deterministically rasterized from the SVG source design using only local, temporary standard-library tooling; the tooling was not added to the repository.
+- Sanitization: Raster files contain only required image data and structural chunks, with metadata, comments, timestamps, text, profiles, EXIF, private chunks, and machine paths omitted.
+- Ownership and approval: David owns the favicon artwork and approves its use with the portfolio.
+
+No workbook material, video, or other binary asset is included in this portfolio.
