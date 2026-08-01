@@ -27,6 +27,10 @@ SOCIAL_DESCRIPTION = (
 SOCIAL_IMAGE_PATH = "assets/images/david-mevorah-portfolio-social-preview.png"
 SOCIAL_IMAGE_URL = CANONICAL_URL + SOCIAL_IMAGE_PATH
 SOCIAL_IMAGE_ALT = "David Mevorah — Reliable software for work that needs to hold up."
+VENV_GUIDE_URL = "https://mevorahde.github.io/venv_guide/"
+FAVICON_SVG_PATH = "favicon.svg"
+FAVICON_ICO_PATH = "favicon.ico"
+APPLE_TOUCH_ICON_PATH = "apple-touch-icon.png"
 
 EXPECTED_FILES = {
     ".editorconfig",
@@ -34,6 +38,7 @@ EXPECTED_FILES = {
     ".gitignore",
     ".nojekyll",
     "ASSET_PROVENANCE.md",
+    APPLE_TOUCH_ICON_PATH,
     "LICENSE",
     "README.md",
     "SECURITY.md",
@@ -41,6 +46,8 @@ EXPECTED_FILES = {
     "assets/images/hyphy-oregon-conference-generator-terminal.png",
     "assets/images/morning-app-launcher-interface.png",
     "assets/images/sql-password-locker-interface.png",
+    FAVICON_ICO_PATH,
+    FAVICON_SVG_PATH,
     SOCIAL_IMAGE_PATH,
     "index.html",
     "robots.txt",
@@ -73,6 +80,12 @@ SOCIAL_IMAGE = {
     "height": 630,
     "bit_depth": 8,
     "color_type": 2,
+}
+
+FAVICON_ASSETS = {
+    FAVICON_SVG_PATH: "64b482e7290a1b35820b1ce3f66d21c1e622eac6683ca8a755f7545e55faf297",
+    FAVICON_ICO_PATH: "6e7c912558d3aa69f6acd7c5d133ee6ead3cf75709b29f4f32651cdc52783df8",
+    APPLE_TOUCH_ICON_PATH: "d5f30e9592e361eb59ceb38e586d7ff3c6e7943400825e848a08f5d64892a7f0",
 }
 
 APPROVED_REPOSITORY_URLS = {
@@ -235,17 +248,26 @@ def inspect_png(path: Path) -> dict[str, object]:
         raise ValueError(f"PNG is missing image data: {path.relative_to(ROOT)}")
 
     width, height, bit_depth, color_type, compression, filtering, interlace = ihdr
-    if (bit_depth, color_type, compression, filtering, interlace) != (8, 2, 0, 0, 0):
-        raise ValueError(f"social PNG must be non-interlaced 8-bit RGB: {path.relative_to(ROOT)}")
+    if bit_depth != 8 or color_type not in {2, 6} or (compression, filtering, interlace) != (0, 0, 0):
+        raise ValueError(f"PNG must be non-interlaced 8-bit RGB or RGBA: {path.relative_to(ROOT)}")
     try:
         pixels = zlib.decompress(b"".join(idat_parts))
     except zlib.error as exc:
         raise ValueError(f"PNG image data does not decompress: {path.relative_to(ROOT)}") from exc
-    row_size = 1 + width * 3
+    row_size = 1 + width * (3 if color_type == 2 else 4)
     if len(pixels) != row_size * height:
         raise ValueError(f"PNG decompressed size is invalid: {path.relative_to(ROOT)}")
-    if any(pixels[row * row_size] > 4 for row in range(height)):
+    filter_types = [pixels[row * row_size] for row in range(height)]
+    if any(filter_type > 4 for filter_type in filter_types):
         raise ValueError(f"PNG contains an invalid scanline filter: {path.relative_to(ROOT)}")
+
+    has_transparency = None
+    if color_type == 6 and set(filter_types) == {0}:
+        has_transparency = any(
+            pixels[row * row_size + 4 + column * 4] < 255
+            for row in range(height)
+            for column in range(width)
+        )
 
     return {
         "width": width,
@@ -253,7 +275,74 @@ def inspect_png(path: Path) -> dict[str, object]:
         "bit_depth": bit_depth,
         "color_type": color_type,
         "chunks": chunks,
+        "filter_types": sorted(set(filter_types)),
+        "has_transparency": has_transparency,
     }
+
+
+def inspect_ico(path: Path) -> dict[str, object]:
+    """Validate a metadata-free ICO containing only PNG-encoded RGBA frames."""
+
+    data = path.read_bytes()
+    if len(data) < 6:
+        raise ValueError(f"truncated ICO: {path.relative_to(ROOT)}")
+    reserved, image_type, count = struct.unpack_from("<HHH", data, 0)
+    if (reserved, image_type, count) != (0, 1, 3):
+        raise ValueError(f"ICO header or image count is invalid: {path.relative_to(ROOT)}")
+    directory_end = 6 + count * 16
+    frames: list[dict[str, object]] = []
+    expected_offset = directory_end
+    for index in range(count):
+        width, height, colors, entry_reserved, planes, bits, size, offset = struct.unpack_from(
+            "<BBBBHHII", data, 6 + index * 16
+        )
+        if 0 in (width, height) or colors != 0 or entry_reserved != 0 or planes != 1 or bits != 32:
+            raise ValueError(f"ICO directory entry is invalid: {path.relative_to(ROOT)}")
+        if offset != expected_offset or offset + size > len(data):
+            raise ValueError(f"ICO frame offsets are invalid: {path.relative_to(ROOT)}")
+        payload = data[offset:offset + size]
+        if not payload.startswith(b"\x89PNG\r\n\x1a\n") or payload[12:16] != b"IHDR":
+            raise ValueError(f"ICO frame is not PNG encoded: {path.relative_to(ROOT)}")
+        png_width, png_height, bit_depth, color_type, compression, filtering, interlace = struct.unpack(
+            ">IIBBBBB", payload[16:29]
+        )
+        chunks = []
+        idat_parts = []
+        png_offset = 8
+        while png_offset < len(payload):
+            length = struct.unpack(">I", payload[png_offset:png_offset + 4])[0]
+            end = png_offset + 12 + length
+            if end > len(payload):
+                raise ValueError(f"ICO PNG frame is truncated: {path.relative_to(ROOT)}")
+            kind = payload[png_offset + 4:png_offset + 8]
+            expected_crc = struct.unpack(">I", payload[png_offset + 8 + length:end])[0]
+            if zlib.crc32(kind + payload[png_offset + 8:png_offset + 8 + length]) & 0xFFFFFFFF != expected_crc:
+                raise ValueError(f"ICO PNG frame CRC mismatch: {path.relative_to(ROOT)}")
+            chunks.append(kind.decode("ascii"))
+            if kind == b"IDAT":
+                idat_parts.append(payload[png_offset + 8:png_offset + 8 + length])
+            png_offset = end
+        if png_offset != len(payload) or chunks != ["IHDR", "IDAT", "IEND"]:
+            raise ValueError(f"ICO frame contains metadata or trailing data: {path.relative_to(ROOT)}")
+        if (
+            (png_width, png_height) != (width, height)
+            or (bit_depth, color_type, compression, filtering, interlace) != (8, 6, 0, 0, 0)
+        ):
+            raise ValueError(f"ICO PNG frame dimensions or mode differ: {path.relative_to(ROOT)}")
+        pixels = zlib.decompress(b"".join(idat_parts))
+        row_size = 1 + width * 4
+        if len(pixels) != row_size * height or any(pixels[row * row_size] != 0 for row in range(height)):
+            raise ValueError(f"ICO PNG frame scanlines are not canonical: {path.relative_to(ROOT)}")
+        has_transparency = any(
+            pixels[row * row_size + 4 + column * 4] < 255
+            for row in range(height)
+            for column in range(width)
+        )
+        frames.append({"width": width, "height": height, "bit_depth": bit_depth, "color_type": color_type, "chunks": chunks, "has_transparency": has_transparency})
+        expected_offset = offset + size
+    if expected_offset != len(data):
+        raise ValueError(f"ICO has trailing data: {path.relative_to(ROOT)}")
+    return {"frames": frames}
 
 
 def parse_html() -> tuple[SiteHTMLParser, str]:
@@ -284,9 +373,9 @@ def verify_inventory(errors: list[str]) -> None:
     binary_files = {
         path for path in actual if (ROOT / path).read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
     }
-    approved_binary_files = set(SCREENSHOTS) | {SOCIAL_IMAGE_PATH}
+    approved_binary_files = set(SCREENSHOTS) | {SOCIAL_IMAGE_PATH, APPLE_TOUCH_ICON_PATH}
     if binary_files != approved_binary_files:
-        errors.append("binary scope differs from the four approved PNG assets")
+        errors.append("PNG binary scope differs from the five approved PNG assets")
 
     forbidden_parts = {"__pycache__", ".pytest_cache", "build", "dist", "htmlcov", ".venv"}
     artifacts = [path for path in actual if forbidden_parts.intersection(Path(path).parts)]
@@ -328,7 +417,7 @@ def verify_html(errors: list[str]) -> None:
             if href[1:] not in parser.ids:
                 errors.append(f"unresolved fragment: {href}")
         elif not parsed.scheme:
-            local_path = ROOT / parsed.path
+            local_path = ROOT / parsed.path.lstrip("/")
             if not local_path.is_file():
                 errors.append(f"unresolved internal link: {href}")
 
@@ -347,6 +436,17 @@ def verify_html(errors: list[str]) -> None:
     canonical = [attrs.get("href") for attrs in link_tags if attrs.get("rel") == "canonical"]
     if canonical != [CANONICAL_URL]:
         errors.append("canonical URL is missing or incorrect")
+    favicon_links = [
+        attrs for attrs in link_tags
+        if attrs.get("rel") in {"icon", "alternate icon", "apple-touch-icon"}
+    ]
+    expected_favicon_links = [
+        {"rel": "icon", "type": "image/svg+xml", "href": "/favicon.svg"},
+        {"rel": "alternate icon", "type": "image/x-icon", "href": "/favicon.ico"},
+        {"rel": "apple-touch-icon", "sizes": "180x180", "href": "/apple-touch-icon.png"},
+    ]
+    if favicon_links != expected_favicon_links:
+        errors.append("favicon link elements differ from the exact approved set")
 
     meta_by_name = {item.get("name"): item.get("content") for item in parser.metas if item.get("name")}
     if not meta_by_name.get("description"):
@@ -430,9 +530,21 @@ def verify_html(errors: list[str]) -> None:
         for link in parser.links
         if link.get("href", "").startswith(("http://", "https://"))
     }
-    approved_outbound = APPROVED_REPOSITORY_URLS | {GITHUB_PROFILE_URL, LINKEDIN_URL}
+    approved_outbound = APPROVED_REPOSITORY_URLS | {GITHUB_PROFILE_URL, LINKEDIN_URL, VENV_GUIDE_URL}
     if outbound != approved_outbound:
-        errors.append("outbound links differ from the approved GitHub and LinkedIn set")
+        errors.append("outbound links differ from the exact approved set")
+
+    supporting_start = html.find('<section class="section supporting-section"')
+    supporting_end = html.find("</section>", supporting_start)
+    supporting_html = html[supporting_start:supporting_end] if supporting_start >= 0 and supporting_end >= 0 else ""
+    git_heading = supporting_html.find("<h3>Git Cheat Sheet</h3>")
+    python_heading = supporting_html.find("<h3>Python Virtual Environment Guide</h3>")
+    if not supporting_html or git_heading < 0 or python_heading < 0 or git_heading >= python_heading:
+        errors.append("supporting-work entries are missing or Git Cheat Sheet is not first")
+    if html.count(VENV_GUIDE_URL) != 1 or supporting_html.count(VENV_GUIDE_URL) != 1:
+        errors.append("Virtual Environment Guide URL must occur exactly once in supporting work")
+    if supporting_html.count('<article class="supporting-card">') != 2:
+        errors.append("supporting work must contain exactly two subordinate articles")
 
     for stale in (
         "https://github.com/mevorahde/ProjectCreationAutomation",
@@ -556,6 +668,92 @@ def verify_social_image(errors: list[str]) -> None:
             errors.append(f"social image provenance is incomplete: {evidence}")
 
 
+def verify_favicons(errors: list[str]) -> None:
+    provenance = (ROOT / "ASSET_PROVENANCE.md").read_text(encoding="utf-8")
+    for relative, expected_hash in FAVICON_ASSETS.items():
+        matches = [path for path in ROOT.rglob(Path(relative).name) if path.is_file()]
+        if matches != [ROOT / relative]:
+            errors.append(f"favicon asset must exist exactly once: {relative}")
+            continue
+        if sha256(matches[0]) != expected_hash:
+            errors.append(f"favicon hash mismatch: {relative}")
+        if relative not in provenance or expected_hash not in provenance:
+            errors.append(f"favicon provenance is incomplete: {relative}")
+
+    svg_path = ROOT / FAVICON_SVG_PATH
+    if svg_path.is_file():
+        svg_text = svg_path.read_text(encoding="utf-8")
+        try:
+            svg_root = ET.fromstring(svg_text)
+        except ET.ParseError as exc:
+            errors.append(f"favicon SVG does not parse: {exc}")
+        else:
+            namespace = "{http://www.w3.org/2000/svg}"
+            if svg_root.tag != namespace + "svg" or svg_root.get("viewBox") != "0 0 64 64":
+                errors.append("favicon SVG root or viewBox is invalid")
+            titles = svg_root.findall(namespace + "title")
+            if len(titles) != 1 or not (titles[0].text or "").strip():
+                errors.append("favicon SVG must contain one descriptive title")
+            allowed = {namespace + name for name in ("svg", "title", "rect", "path", "circle")}
+            if any(element.tag not in allowed for element in svg_root.iter()):
+                errors.append("favicon SVG contains an unapproved element")
+            for element in svg_root.iter():
+                for name, value in element.attrib.items():
+                    if name.lower().endswith("href") or "url(" in value.lower() or value.startswith(("http:", "https:", "//")):
+                        errors.append("favicon SVG contains an external reference")
+        if "<script" in svg_text.lower() or "<!--" in svg_text or "<!doctype" in svg_text.lower():
+            errors.append("favicon SVG contains script, comment, or document-type metadata")
+
+    apple_path = ROOT / APPLE_TOUCH_ICON_PATH
+    if apple_path.is_file():
+        try:
+            apple = inspect_png(apple_path)
+        except ValueError as exc:
+            errors.append(str(exc))
+        else:
+            if (apple["width"], apple["height"], apple["bit_depth"], apple["color_type"]) != (180, 180, 8, 6):
+                errors.append("Apple touch icon must be exactly 180x180 8-bit RGBA")
+            if apple["chunks"] != ["IHDR", "IDAT", "IEND"]:
+                errors.append("Apple touch icon contains metadata, ancillary, or private chunks")
+            if apple["filter_types"] != [0] or apple["has_transparency"] is not True:
+                errors.append("Apple touch icon must use canonical scanlines and transparent outer pixels")
+
+    ico_path = ROOT / FAVICON_ICO_PATH
+    if ico_path.is_file():
+        try:
+            ico = inspect_ico(ico_path)
+        except ValueError as exc:
+            errors.append(str(exc))
+        else:
+            frames = ico["frames"]
+            if [(frame["width"], frame["height"]) for frame in frames] != [(16, 16), (32, 32), (48, 48)]:
+                errors.append("ICO frame inventory must be exactly 16, 32, and 48 pixels")
+            if not all(frame["has_transparency"] is True for frame in frames):
+                errors.append("every ICO frame must contain transparent outer pixels")
+
+
+def verify_readme(errors: list[str]) -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    required = (
+        "**View the live portfolio: <https://mevorahde.github.io/>**",
+        "public GitHub Pages user site",
+        "repository root of the\n`main` branch",
+        "does not use a custom domain",
+        "semantic HTML and CSS",
+        "responsive layout",
+        "accessibility-conscious",
+        "local assets",
+        "no runtime dependencies or build step",
+        "no analytics, trackers, cookies, forms, external fonts, or embedded\nthird-party media",
+    )
+    for phrase in required:
+        if phrase not in readme:
+            errors.append(f"README publication or architecture fact missing: {phrase}")
+    for stale in ("intended future destination", "local draft", "future destination"):
+        if stale.lower() in readme.lower():
+            errors.append(f"README contains stale publication wording: {stale}")
+
+
 def verify_supporting_files(errors: list[str]) -> None:
     robots = (ROOT / "robots.txt").read_text(encoding="utf-8")
     expected_robots = (
@@ -601,6 +799,8 @@ def verify_supporting_files(errors: list[str]) -> None:
             parsed_attributes.append((parts[0], parts[1:]))
     if ("*.png", ["binary"]) not in parsed_attributes:
         errors.append("Git attributes must mark PNG files as binary")
+    if ("*.ico", ["binary"]) not in parsed_attributes:
+        errors.append("Git attributes must mark ICO files as binary")
     if ("*", ["text=auto", "eol=lf"]) not in parsed_attributes:
         errors.append("Git attributes must define normalized LF text")
 
@@ -638,7 +838,7 @@ def verify_privacy_and_scope(errors: list[str]) -> None:
 
     disallowed_extensions = {
         ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".pdf", ".doc", ".docx",
-        ".xls", ".xlsx", ".db", ".sqlite", ".ico", ".svg", ".mp4", ".webm", ".zip", ".exe",
+        ".xls", ".xlsx", ".db", ".sqlite", ".mp4", ".webm", ".zip", ".exe",
     }
     unsupported = [
         relative for relative in project_files() if (ROOT / relative).suffix.lower() in disallowed_extensions
@@ -655,7 +855,9 @@ def run_checks() -> list[str]:
     if all((ROOT / path).is_file() for path in SCREENSHOTS):
         verify_screenshots(errors)
     verify_social_image(errors)
+    verify_favicons(errors)
     verify_supporting_files(errors)
+    verify_readme(errors)
     verify_privacy_and_scope(errors)
     return errors
 
@@ -669,8 +871,8 @@ def main() -> int:
         return 1
     print("Site verification passed.")
     print(
-        f"Verified {len(EXPECTED_FILES)} intended files, including three approved screenshots "
-        "and one sanitized social-preview image."
+        f"Verified {len(EXPECTED_FILES)} intended files, including three approved screenshots, "
+        "one sanitized social-preview image, and three original favicon assets."
     )
     print("HTML, metadata, links, assets, privacy boundaries, and repository text policies passed.")
     return 0

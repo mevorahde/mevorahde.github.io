@@ -1,11 +1,14 @@
 # David Mevorah portfolio
 
-This repository contains the dependency-free static source for David Mevorah's
-portfolio at <https://mevorahde.github.io/>.
+**View the live portfolio: <https://mevorahde.github.io/>**
 
-The site uses semantic HTML and CSS, requires no build step, and is designed to
-publish directly from the repository root with GitHub Pages. It contains no
-runtime application, analytics, forms, cookies, external fonts, or embedded
+This repository contains the dependency-free static source for David Mevorah's
+public GitHub Pages user site. Its canonical URL is
+<https://mevorahde.github.io/>.
+
+The site uses semantic HTML and CSS, a responsive layout, accessibility-conscious
+implementation, and local assets. It has no runtime dependencies or build step.
+It includes no analytics, trackers, cookies, forms, external fonts, or embedded
 third-party media.
 
 ## Local review
@@ -25,10 +28,9 @@ No package installation or build command is required.
 
 ## Publication
 
-The intended future destination is a public GitHub Pages user site published
-from the root of the `main` branch. Repository creation, Pages configuration,
-custom-domain configuration, and publication are deliberately outside this
-local draft.
+This public GitHub Pages user site is published from the repository root of the
+`main` branch. The canonical URL is <https://mevorahde.github.io/>.
+The site does not use a custom domain.
 
 ## Licensing and assets
 

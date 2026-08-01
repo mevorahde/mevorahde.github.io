@@ -37,7 +37,7 @@ class PortfolioSiteTests(unittest.TestCase):
             if href.startswith("#"):
                 self.assertIn(href[1:], self.parser.ids)
             elif "://" not in href:
-                self.assertTrue((ROOT / href.split("#", 1)[0]).is_file())
+                self.assertTrue((ROOT / href.split("#", 1)[0].lstrip("/")).is_file())
         for image in self.parser.images:
             self.assertTrue((ROOT / image["src"]).is_file())
 
@@ -61,6 +61,23 @@ class PortfolioSiteTests(unittest.TestCase):
         }
         self.assertEqual(verify_site.APPROVED_REPOSITORY_URLS, expected)
         self.assertEqual(repository_urls, expected)
+
+    def test_exact_complete_outbound_url_set_and_supporting_order(self) -> None:
+        expected = verify_site.APPROVED_REPOSITORY_URLS | {
+            verify_site.GITHUB_PROFILE_URL,
+            verify_site.LINKEDIN_URL,
+            verify_site.VENV_GUIDE_URL,
+        }
+        outbound = {
+            link["href"]
+            for link in self.parser.links
+            if link.get("href", "").startswith(("http://", "https://"))
+        }
+        self.assertEqual(outbound, expected)
+        self.assertEqual(self.html.count(verify_site.VENV_GUIDE_URL), 1)
+        section = self.html.split('<section class="section supporting-section"', 1)[1].split("</section>", 1)[0]
+        self.assertLess(section.index("<h3>Git Cheat Sheet</h3>"), section.index("<h3>Python Virtual Environment Guide</h3>"))
+        self.assertEqual(section.count('<article class="supporting-card">'), 2)
 
     def test_json_ld_is_exactly_the_approved_person_record(self) -> None:
         self.assertEqual(len(self.parser.scripts), 1)
@@ -148,6 +165,57 @@ class PortfolioSiteTests(unittest.TestCase):
             verify_site.sha256(path),
             verify_site.SOCIAL_IMAGE["sha256"],
         )
+
+    def test_favicon_links_assets_frames_metadata_and_hashes(self) -> None:
+        links = [
+            attrs for tag, attrs in self.parser.tags
+            if tag == "link" and attrs.get("rel") in {"icon", "alternate icon", "apple-touch-icon"}
+        ]
+        self.assertEqual(
+            links,
+            [
+                {"rel": "icon", "type": "image/svg+xml", "href": "/favicon.svg"},
+                {"rel": "alternate icon", "type": "image/x-icon", "href": "/favicon.ico"},
+                {"rel": "apple-touch-icon", "sizes": "180x180", "href": "/apple-touch-icon.png"},
+            ],
+        )
+        for relative, expected_hash in verify_site.FAVICON_ASSETS.items():
+            matches = [path for path in ROOT.rglob(Path(relative).name) if path.is_file()]
+            self.assertEqual(matches, [ROOT / relative])
+            self.assertEqual(verify_site.sha256(matches[0]), expected_hash)
+
+        svg_text = (ROOT / verify_site.FAVICON_SVG_PATH).read_text(encoding="utf-8")
+        svg = ET.fromstring(svg_text)
+        self.assertEqual(svg.tag, "{http://www.w3.org/2000/svg}svg")
+        self.assertEqual(svg.get("viewBox"), "0 0 64 64")
+        self.assertNotIn("<script", svg_text.lower())
+        self.assertNotIn("<!--", svg_text)
+        self.assertNotRegex(svg_text, r"(?:href|url\()[^>]*(?:https?:|//)")
+
+        apple = verify_site.inspect_png(ROOT / verify_site.APPLE_TOUCH_ICON_PATH)
+        self.assertEqual((apple["width"], apple["height"]), (180, 180))
+        self.assertEqual((apple["bit_depth"], apple["color_type"]), (8, 6))
+        self.assertEqual(apple["chunks"], ["IHDR", "IDAT", "IEND"])
+        self.assertTrue(apple["has_transparency"])
+
+        ico = verify_site.inspect_ico(ROOT / verify_site.FAVICON_ICO_PATH)
+        self.assertEqual(
+            [(frame["width"], frame["height"]) for frame in ico["frames"]],
+            [(16, 16), (32, 32), (48, 48)],
+        )
+        for frame in ico["frames"]:
+            self.assertEqual((frame["bit_depth"], frame["color_type"]), (8, 6))
+            self.assertEqual(frame["chunks"], ["IHDR", "IDAT", "IEND"])
+            self.assertTrue(frame["has_transparency"])
+
+    def test_readme_states_current_publication_facts(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("**View the live portfolio: <https://mevorahde.github.io/>**", readme)
+        self.assertIn("public GitHub Pages user site", readme)
+        self.assertIn("repository root of the\n`main` branch", readme)
+        self.assertIn("does not use a custom domain", readme)
+        self.assertNotIn("intended future destination", readme.lower())
+        self.assertNotIn("local draft", readme.lower())
 
     def test_screenshots_match_approved_hashes_and_dimensions(self) -> None:
         for relative, expected in verify_site.SCREENSHOTS.items():
