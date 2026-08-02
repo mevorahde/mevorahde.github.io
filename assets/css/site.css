@@ -374,12 +374,20 @@ h4 {
   margin: 0;
 }
 
-.project-figure img {
+.project-figure img,
+.project-figure video {
+  display: block;
+  max-width: 100%;
   width: 100%;
+  height: auto;
   border: 1px solid #9eaaad;
   border-radius: 0.3rem;
   background: #ffffff;
   box-shadow: 0.6rem 0.6rem 0 var(--teal-pale);
+}
+
+.project-figure video {
+  aspect-ratio: 4 / 3;
 }
 
 .figure-terminal img {
@@ -390,6 +398,22 @@ h4 {
   margin-top: 0.8rem;
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.video-transcript {
+  margin-top: 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.video-transcript summary {
+  color: var(--teal-dark);
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.video-transcript p:last-child {
+  margin-bottom: 0;
 }
 
 .evidence-panel {
@@ -701,7 +725,8 @@ h4 {
   .focus-card,
   .skills-grid article,
   .supporting-card,
-  .project-figure img {
+  .project-figure img,
+  .project-figure video {
     border-width: 2px;
   }
 }
@@ -714,6 +739,7 @@ h4 {
   .supporting-card,
   .evidence-panel,
   .project-figure img,
+  .project-figure video,
   .process-statement {
     forced-color-adjust: auto;
   }
