@@ -124,8 +124,17 @@
           <a class="text-link" href="https://github.com/mevorahde/sql-password-locker">Review SQL Password Locker on GitHub</a>
         </div>
         <figure class="project-figure">
-          <img src="assets/images/sql-password-locker-interface.png" width="895" height="625" loading="lazy" alt="SQL Password Locker interface showing three synthetic example accounts and empty credential fields.">
-          <figcaption>Synthetic portfolio data only; no real credentials are shown.</figcaption>
+          <video controls preload="metadata" playsinline poster="assets/images/sql-password-locker-interface.png" aria-describedby="sql-password-locker-demo-caption sql-password-locker-demo-transcript">
+            <source src="assets/videos/sql-password-locker-demo.mp4" type="video/mp4">
+            Your browser does not support HTML5 video. The text transcript below describes the demonstration.
+          </video>
+          <figcaption id="sql-password-locker-demo-caption">Approximately 39 seconds. All displayed information is synthetic portfolio data. The demonstration shows credential creation, encrypted persistence, clipboard copying with automatic clearing, deletion, and vault locking.</figcaption>
+          <details class="video-transcript" id="sql-password-locker-demo-transcript">
+            <summary>Read the video transcript</summary>
+            <p>The SQL Password Locker opens to an unlocked, empty encrypted credential vault. A synthetic account named “portfolio-demo” is entered with a demonstration password and saved.</p>
+            <p>The credential appears in the account list, demonstrating encrypted persistence. The password is copied to the clipboard, and a message confirms that the clipboard will clear automatically after 30 seconds.</p>
+            <p>The synthetic credential is deleted, returning the vault to an empty state. Finally, the vault is locked and the interface returns to the master-password unlock screen.</p>
+          </details>
         </figure>
       </article>
 

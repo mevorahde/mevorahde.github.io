@@ -31,6 +31,9 @@ VENV_GUIDE_URL = "https://mevorahde.github.io/venv_guide/"
 FAVICON_SVG_PATH = "favicon.svg"
 FAVICON_ICO_PATH = "favicon.ico"
 APPLE_TOUCH_ICON_PATH = "apple-touch-icon.png"
+SQL_VIDEO_PATH = "assets/videos/sql-password-locker-demo.mp4"
+SQL_VIDEO_SHA256 = "400766cec39789ca797e517460a9def4d18570cda3a0657f948e7acef91718bf"
+SQL_VIDEO_POSTER = "assets/images/sql-password-locker-interface.png"
 
 EXPECTED_FILES = {
     ".editorconfig",
@@ -46,6 +49,7 @@ EXPECTED_FILES = {
     "assets/images/hyphy-oregon-conference-generator-terminal.png",
     "assets/images/morning-app-launcher-interface.png",
     "assets/images/sql-password-locker-interface.png",
+    SQL_VIDEO_PATH,
     FAVICON_ICO_PATH,
     FAVICON_SVG_PATH,
     SOCIAL_IMAGE_PATH,
@@ -345,6 +349,88 @@ def inspect_ico(path: Path) -> dict[str, object]:
     return {"frames": frames}
 
 
+def inspect_mp4(path: Path) -> dict[str, object]:
+    """Return the structural facts needed to validate the reviewed MP4."""
+
+    data = path.read_bytes()
+    if len(data) < 16 or data[4:8] != b"ftyp":
+        raise ValueError(f"invalid MP4 signature: {path.relative_to(ROOT)}")
+
+    def boxes(start: int, end: int) -> list[tuple[bytes, int, int, int]]:
+        found: list[tuple[bytes, int, int, int]] = []
+        offset = start
+        while offset < end:
+            if offset + 8 > end:
+                raise ValueError(f"truncated MP4 atom: {path.relative_to(ROOT)}")
+            size = struct.unpack(">I", data[offset:offset + 4])[0]
+            atom_type = data[offset + 4:offset + 8]
+            header_size = 8
+            if size == 1:
+                if offset + 16 > end:
+                    raise ValueError(f"truncated extended MP4 atom: {path.relative_to(ROOT)}")
+                size = struct.unpack(">Q", data[offset + 8:offset + 16])[0]
+                header_size = 16
+            elif size == 0:
+                size = end - offset
+            if size < header_size or offset + size > end:
+                raise ValueError(f"invalid MP4 atom length: {path.relative_to(ROOT)}")
+            found.append((atom_type, offset, offset + header_size, offset + size))
+            offset += size
+        return found
+
+    top_level = boxes(0, len(data))
+    top_types = [atom_type.decode("latin-1") for atom_type, _, _, _ in top_level]
+    moov = next((box for box in top_level if box[0] == b"moov"), None)
+    if moov is None:
+        raise ValueError(f"MP4 moov atom missing: {path.relative_to(ROOT)}")
+
+    tracks: list[dict[str, object]] = []
+    for trak in (box for box in boxes(moov[2], moov[3]) if box[0] == b"trak"):
+        trak_children = boxes(trak[2], trak[3])
+        tkhd = next((box for box in trak_children if box[0] == b"tkhd"), None)
+        mdia = next((box for box in trak_children if box[0] == b"mdia"), None)
+        if tkhd is None or mdia is None:
+            raise ValueError(f"MP4 track structure is incomplete: {path.relative_to(ROOT)}")
+        width_fixed, height_fixed = struct.unpack(">II", data[tkhd[3] - 8:tkhd[3]])
+        mdia_children = boxes(mdia[2], mdia[3])
+        hdlr = next((box for box in mdia_children if box[0] == b"hdlr"), None)
+        mdhd = next((box for box in mdia_children if box[0] == b"mdhd"), None)
+        minf = next((box for box in mdia_children if box[0] == b"minf"), None)
+        if hdlr is None or mdhd is None or minf is None:
+            raise ValueError(f"MP4 media structure is incomplete: {path.relative_to(ROOT)}")
+        handler = data[hdlr[2] + 8:hdlr[2] + 12].decode("latin-1")
+        version = data[mdhd[2]]
+        timing_offset = mdhd[2] + (20 if version == 1 else 12)
+        timescale = struct.unpack(">I", data[timing_offset:timing_offset + 4])[0]
+        duration_size = 8 if version == 1 else 4
+        duration = int.from_bytes(data[timing_offset + 4:timing_offset + 4 + duration_size], "big")
+        minf_children = boxes(minf[2], minf[3])
+        stbl = next((box for box in minf_children if box[0] == b"stbl"), None)
+        if stbl is None:
+            raise ValueError(f"MP4 sample table is missing: {path.relative_to(ROOT)}")
+        stsd = next((box for box in boxes(stbl[2], stbl[3]) if box[0] == b"stsd"), None)
+        if stsd is None or stsd[2] + 16 > stsd[3]:
+            raise ValueError(f"MP4 sample description is missing: {path.relative_to(ROOT)}")
+        codec = data[stsd[2] + 12:stsd[2] + 16].decode("latin-1")
+        tracks.append({
+            "handler": handler,
+            "codec": codec,
+            "width": width_fixed >> 16,
+            "height": height_fixed >> 16,
+            "duration": duration / timescale if timescale else 0,
+        })
+
+    return {
+        "size": len(data),
+        "top_level": top_types,
+        "tracks": tracks,
+        "moov_offset": moov[1],
+        "mdat_offset": next((box[1] for box in top_level if box[0] == b"mdat"), -1),
+        "has_video_handler_name": b"VideoHandler" in data,
+        "lowercase_bytes": data.lower(),
+    }
+
+
 def parse_html() -> tuple[SiteHTMLParser, str]:
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     parser = SiteHTMLParser()
@@ -376,6 +462,10 @@ def verify_inventory(errors: list[str]) -> None:
     approved_binary_files = set(SCREENSHOTS) | {SOCIAL_IMAGE_PATH, APPLE_TOUCH_ICON_PATH}
     if binary_files != approved_binary_files:
         errors.append("PNG binary scope differs from the five approved PNG assets")
+
+    mp4_files = {path for path in actual if (ROOT / path).read_bytes()[4:8] == b"ftyp"}
+    if mp4_files != {SQL_VIDEO_PATH}:
+        errors.append("MP4 binary scope differs from the one approved video asset")
 
     forbidden_parts = {"__pycache__", ".pytest_cache", "build", "dist", "htmlcov", ".venv"}
     artifacts = [path for path in actual if forbidden_parts.intersection(Path(path).parts)]
@@ -507,7 +597,7 @@ def verify_html(errors: list[str]) -> None:
             if person != approved_person:
                 errors.append("JSON-LD contains unapproved or incorrect public fields")
 
-    forbidden_tags = {"form", "iframe", "object", "embed", "video", "audio", "canvas"}
+    forbidden_tags = {"form", "iframe", "object", "embed", "audio", "canvas"}
     found_forbidden = forbidden_tags.intersection(tag_names)
     if found_forbidden:
         errors.append("forbidden executable or embedded elements: " + ", ".join(sorted(found_forbidden)))
@@ -524,6 +614,39 @@ def verify_html(errors: list[str]) -> None:
                 external_resources.append(href)
     if external_resources:
         errors.append("external runtime resources found: " + ", ".join(external_resources))
+
+    videos = [attrs for tag, attrs in parser.tags if tag == "video"]
+    sources = [attrs for tag, attrs in parser.tags if tag == "source"]
+    expected_video = {
+        "controls": "",
+        "preload": "metadata",
+        "playsinline": "",
+        "poster": SQL_VIDEO_POSTER,
+        "aria-describedby": "sql-password-locker-demo-caption sql-password-locker-demo-transcript",
+    }
+    if videos != [expected_video]:
+        errors.append("SQL Password Locker video attributes differ from the approved accessible set")
+    if sources != [{"src": SQL_VIDEO_PATH, "type": "video/mp4"}]:
+        errors.append("SQL Password Locker video source or MIME type is incorrect")
+    if html.count(SQL_VIDEO_PATH) != 1:
+        errors.append("SQL Password Locker video path must be referenced exactly once")
+    if videos and any(attribute in videos[0] for attribute in ("autoplay", "loop")):
+        errors.append("SQL Password Locker video must not autoplay or loop")
+    transcript_requirements = (
+        'id="sql-password-locker-demo-caption"',
+        'id="sql-password-locker-demo-transcript"',
+        "Approximately 39 seconds",
+        "synthetic portfolio data",
+        "credential creation",
+        "encrypted persistence",
+        "clipboard copying with automatic clearing",
+        "deletion",
+        "vault locking",
+        "Read the video transcript",
+    )
+    for requirement in transcript_requirements:
+        if requirement not in html:
+            errors.append(f"SQL Password Locker video caption or transcript is incomplete: {requirement}")
 
     outbound = {
         link["href"]
@@ -606,8 +729,9 @@ def verify_html(errors: list[str]) -> None:
             errors.append(f"below-the-fold image is not lazy-loaded: {src}")
 
     html_images = {image.get("src") for image in parser.images}
-    if html_images != set(SCREENSHOTS):
-        errors.append("HTML image set differs from the approved screenshots")
+    expected_images = set(SCREENSHOTS) - {SQL_VIDEO_POSTER}
+    if html_images != expected_images:
+        errors.append("HTML image set differs from the approved displayed screenshots")
 
 
 def verify_screenshots(errors: list[str]) -> None:
@@ -629,13 +753,67 @@ def verify_screenshots(errors: list[str]) -> None:
             continue
         if dimensions != (expected["width"], expected["height"]):
             errors.append(f"screenshot dimensions mismatch: {relative}")
-        html_image = html_images.get(relative, {})
-        if html_image.get("width") != str(expected["width"]):
-            errors.append(f"HTML width does not match PNG: {relative}")
-        if html_image.get("height") != str(expected["height"]):
-            errors.append(f"HTML height does not match PNG: {relative}")
+        if relative == SQL_VIDEO_POSTER:
+            videos = [attrs for tag, attrs in parser.tags if tag == "video"]
+            if len(videos) != 1 or videos[0].get("poster") != relative:
+                errors.append(f"approved poster is not attached to the video: {relative}")
+        else:
+            html_image = html_images.get(relative, {})
+            if html_image.get("width") != str(expected["width"]):
+                errors.append(f"HTML width does not match PNG: {relative}")
+            if html_image.get("height") != str(expected["height"]):
+                errors.append(f"HTML height does not match PNG: {relative}")
         if relative not in provenance or expected["sha256"] not in provenance:
             errors.append(f"asset provenance is incomplete: {relative}")
+
+
+def verify_sql_video(errors: list[str]) -> None:
+    path = ROOT / SQL_VIDEO_PATH
+    if not path.is_file():
+        errors.append(f"approved video missing: {SQL_VIDEO_PATH}")
+        return
+    if sha256(path) != SQL_VIDEO_SHA256:
+        errors.append("SQL Password Locker video hash mismatch")
+    try:
+        details = inspect_mp4(path)
+    except ValueError as exc:
+        errors.append(str(exc))
+        return
+    tracks = details["tracks"]
+    if tracks != [{
+        "handler": "vide",
+        "codec": "avc1",
+        "width": 1440,
+        "height": 1080,
+        "duration": 39.266666666666666,
+    }]:
+        errors.append("SQL Password Locker video track inventory or properties are incorrect")
+    if not details["has_video_handler_name"]:
+        errors.append("SQL Password Locker video handler name is missing")
+    if not (500_000 <= details["size"] <= 2_000_000):
+        errors.append("SQL Password Locker video size is outside the approved bound")
+    if details["moov_offset"] < 0 or details["mdat_offset"] < 0 or details["moov_offset"] > details["mdat_offset"]:
+        errors.append("SQL Password Locker video is not fast-start optimized")
+    lower = details["lowercase_bytes"]
+    forbidden_metadata = (
+        b"clipchamp",
+        b"http://",
+        b"https://",
+        b"comment",
+        b"encoder",
+        b"lavf",
+        b"creation_time",
+        b"location",
+        b"com.apple.quicktime",
+        b"c:\\users\\",
+        b"/users/",
+    )
+    if any(marker in lower for marker in forbidden_metadata):
+        errors.append("SQL Password Locker video contains URL, comment, private, or machine metadata")
+    provenance = (ROOT / "ASSET_PROVENANCE.md").read_text(encoding="utf-8")
+    for evidence in (SQL_VIDEO_PATH, SQL_VIDEO_SHA256, "39.266667", "1440 × 1080", "959,618 bytes"):
+        if evidence not in provenance:
+            errors.append(f"video provenance is incomplete: {evidence}")
 
 
 def verify_social_image(errors: list[str]) -> None:
@@ -801,6 +979,8 @@ def verify_supporting_files(errors: list[str]) -> None:
         errors.append("Git attributes must mark PNG files as binary")
     if ("*.ico", ["binary"]) not in parsed_attributes:
         errors.append("Git attributes must mark ICO files as binary")
+    if ("*.mp4", ["binary"]) not in parsed_attributes:
+        errors.append("Git attributes must mark MP4 files as binary")
     if ("*", ["text=auto", "eol=lf"]) not in parsed_attributes:
         errors.append("Git attributes must define normalized LF text")
 
@@ -838,7 +1018,7 @@ def verify_privacy_and_scope(errors: list[str]) -> None:
 
     disallowed_extensions = {
         ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".pdf", ".doc", ".docx",
-        ".xls", ".xlsx", ".db", ".sqlite", ".mp4", ".webm", ".zip", ".exe",
+        ".xls", ".xlsx", ".db", ".sqlite", ".webm", ".zip", ".exe",
     }
     unsupported = [
         relative for relative in project_files() if (ROOT / relative).suffix.lower() in disallowed_extensions
@@ -854,6 +1034,7 @@ def run_checks() -> list[str]:
         verify_html(errors)
     if all((ROOT / path).is_file() for path in SCREENSHOTS):
         verify_screenshots(errors)
+    verify_sql_video(errors)
     verify_social_image(errors)
     verify_favicons(errors)
     verify_supporting_files(errors)
@@ -872,7 +1053,7 @@ def main() -> int:
     print("Site verification passed.")
     print(
         f"Verified {len(EXPECTED_FILES)} intended files, including three approved screenshots, "
-        "one sanitized social-preview image, and three original favicon assets."
+        "one reviewed video, one sanitized social-preview image, and three original favicon assets."
     )
     print("HTML, metadata, links, assets, privacy boundaries, and repository text policies passed.")
     return 0

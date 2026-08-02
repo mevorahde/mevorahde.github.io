@@ -1,9 +1,10 @@
 # Asset provenance
 
-Only the three project screenshots, one social-preview image, and favicon system
-listed below are approved for this portfolio site. Each project screenshot was
-copied byte-for-byte from a clean checkout at the stated public commit. The
-social card and favicon artwork were created specifically for this portfolio.
+Only the three project screenshots, one project demonstration video, one
+social-preview image, and favicon system listed below are approved for this
+portfolio site. Each project screenshot was copied byte-for-byte from a clean
+checkout at the stated public commit. The social card and favicon artwork were
+created specifically for this portfolio.
 
 The website's MIT License covers original website code only. These screenshots
 retain their source-project provenance and licensing context; their inclusion
@@ -19,6 +20,24 @@ does not imply that they inherit the website-code license.
 - Copied SHA-256: `402633c3a545041972ca270e3eb298cbe596c7658a4d7e4ae83406bd5618bcf2`
 - Dimensions: 895 × 625 pixels
 - Reuse decision: Approved by the project owner for this portfolio. The image visibly identifies its accounts as synthetic. No broader or separate asset-license claim is made here.
+
+## SQL Password Locker demonstration video
+
+- Portfolio path: `assets/videos/sql-password-locker-demo.mp4`
+- Source identifier: owner-reviewed local export, `SQL Password Locker Demo.mp4`
+- Source SHA-256: `38237a48c902f0d3e44c73bc363fab1cb30a595b18b97abfba6c605dc56c7f13`
+- Source size: 1,925,297 bytes
+- Source streams: one 1440 × 1080 H.264/AVC video stream (39.266667 seconds, 1,178 frames, 30 fps) and one unused 48 kHz stereo AAC audio stream (39.242 seconds)
+- Source metadata: ISO Base Media container brands plus a Clipchamp URL in the encoder field and a promotional Clipchamp URL/comment
+- Processing: FFmpeg stream copy of the sole H.264 video stream, with audio, subtitles, attachments, data streams, chapters, inherited metadata, and nonessential source metadata excluded; fast-start layout places the `moov` atom before `mdat`. No video re-encoding or pixel alteration was performed.
+- Video packet SHA-256 (source and final): `4750ad806154694df4db38739a4f76fba90b0be7adef6a6cac3de8a179627b63`
+- Final streams: exactly one H.264/AVC `avc1` video stream using the `VideoHandler`; no audio, subtitle, attachment, or data streams
+- Final dimensions and duration: 1440 × 1080 pixels; 39.266667 seconds
+- Final metadata: ISO Base Media container brands and standard video handler/vendor fields only; no Clipchamp URL/comment, encoder, title, description, personal, machine, location, or creation-time metadata
+- Final size: 959,618 bytes
+- Final SHA-256: `400766cec39789ca797e517460a9def4d18570cda3a0657f948e7acef91718bf`
+- Visual verification: Representative frames at the beginning, midpoint, and end were reviewed and match the approved source workflow; identical source/final video packet hashes additionally verify the copied H.264 payload.
+- Content and reuse decision: Approved by the project owner for this portfolio. All visible account and credential information is synthetic portfolio data. No broader or separate asset-license claim is made here.
 
 ## Morning App Launcher interface
 
@@ -65,4 +84,4 @@ does not imply that they inherit the website-code license.
 - Sanitization: Raster files contain only required image data and structural chunks, with metadata, comments, timestamps, text, profiles, EXIF, private chunks, and machine paths omitted.
 - Ownership and approval: David owns the favicon artwork and approves its use with the portfolio.
 
-No workbook material, video, or other binary asset is included in this portfolio.
+No workbook material or unlisted binary asset is included in this portfolio.

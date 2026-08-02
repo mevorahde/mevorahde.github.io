@@ -40,6 +40,9 @@ class PortfolioSiteTests(unittest.TestCase):
                 self.assertTrue((ROOT / href.split("#", 1)[0].lstrip("/")).is_file())
         for image in self.parser.images:
             self.assertTrue((ROOT / image["src"]).is_file())
+        for tag, attrs in self.parser.tags:
+            if tag == "source":
+                self.assertTrue((ROOT / attrs["src"]).is_file())
 
     def test_outbound_repository_urls_use_exact_canonical_spellings(self) -> None:
         expected = {
@@ -226,10 +229,84 @@ class PortfolioSiteTests(unittest.TestCase):
                 (expected["width"], expected["height"]),
             )
 
+    def test_sql_password_locker_video_markup_and_transcript(self) -> None:
+        videos = [attrs for tag, attrs in self.parser.tags if tag == "video"]
+        self.assertEqual(
+            videos,
+            [{
+                "controls": "",
+                "preload": "metadata",
+                "playsinline": "",
+                "poster": verify_site.SQL_VIDEO_POSTER,
+                "aria-describedby": "sql-password-locker-demo-caption sql-password-locker-demo-transcript",
+            }],
+        )
+        self.assertNotIn("autoplay", videos[0])
+        self.assertNotIn("loop", videos[0])
+        self.assertEqual(
+            [attrs for tag, attrs in self.parser.tags if tag == "source"],
+            [{"src": verify_site.SQL_VIDEO_PATH, "type": "video/mp4"}],
+        )
+        self.assertEqual(self.html.count(verify_site.SQL_VIDEO_PATH), 1)
+        self.assertIn('id="sql-password-locker-demo-caption"', self.html)
+        self.assertIn('id="sql-password-locker-demo-transcript"', self.html)
+        self.assertIn("Read the video transcript", self.html)
+        for phrase in (
+            "Approximately 39 seconds",
+            "synthetic portfolio data",
+            "credential creation",
+            "encrypted persistence",
+            "clipboard copying with automatic clearing",
+            "deletion",
+            "vault locking",
+        ):
+            self.assertIn(phrase, self.html)
+
+    def test_sql_password_locker_mp4_is_exact_and_sanitized(self) -> None:
+        matches = [
+            path
+            for path in ROOT.rglob("sql-password-locker-demo.mp4")
+            if path.is_file()
+        ]
+        self.assertEqual(matches, [ROOT / verify_site.SQL_VIDEO_PATH])
+        path = matches[0]
+        self.assertEqual(verify_site.sha256(path), verify_site.SQL_VIDEO_SHA256)
+        details = verify_site.inspect_mp4(path)
+        self.assertEqual(
+            details["tracks"],
+            [{
+                "handler": "vide",
+                "codec": "avc1",
+                "width": 1440,
+                "height": 1080,
+                "duration": 39.266666666666666,
+            }],
+        )
+        self.assertTrue(details["has_video_handler_name"])
+        self.assertLess(details["moov_offset"], details["mdat_offset"])
+        self.assertGreaterEqual(details["size"], 500_000)
+        self.assertLessEqual(details["size"], 2_000_000)
+        lower = details["lowercase_bytes"]
+        for marker in (
+            b"clipchamp",
+            b"http://",
+            b"https://",
+            b"comment",
+            b"encoder",
+            b"lavf",
+            b"creation_time",
+            b"location",
+            b"com.apple.quicktime",
+            b"c:\\users\\",
+            b"/users/",
+        ):
+            self.assertNotIn(marker, lower)
+
     def test_no_executable_or_external_runtime_content(self) -> None:
         tags = [tag for tag, _ in self.parser.tags]
-        for forbidden in ("form", "iframe", "object", "embed", "video", "audio", "canvas"):
+        for forbidden in ("form", "iframe", "object", "embed", "audio", "canvas"):
             self.assertNotIn(forbidden, tags)
+        self.assertEqual(tags.count("video"), 1)
         self.assertNotIn("target=\"_blank\"", self.html)
         self.assertFalse(any(path.suffix == ".js" for path in ROOT.rglob("*") if path.is_file()))
 
