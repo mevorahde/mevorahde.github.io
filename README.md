@@ -11,10 +11,10 @@ implementation, and local assets. It has no runtime dependencies or build step.
 It includes no analytics, trackers, cookies, forms, external fonts, or embedded
 third-party media.
 
-The SQL Password Locker project includes a local, video-only MP4 demonstration
-with native browser controls, a poster image, a visible synthetic-data caption,
-and an adjacent text transcript. The reviewed asset's provenance and exact hash
-are recorded in `ASSET_PROVENANCE.md`.
+The SQL Password Locker and Morning App Launcher projects include local,
+video-only MP4 demonstrations with native browser controls, poster images,
+visible captions, and adjacent text transcripts. Each reviewed asset's
+provenance and exact hash are recorded in `ASSET_PROVENANCE.md`.
 
 ## Local review
 
@@ -42,5 +42,5 @@ The site does not use a custom domain.
 Original website code is licensed under the MIT License. Linked repositories
 retain their own licenses and attribution requirements. Copied screenshots do
 not inherit the website-code license; their exact provenance and reuse decisions
-are recorded in `ASSET_PROVENANCE.md`. The demonstration video likewise retains
-its separately documented provenance and reuse decision.
+are recorded in `ASSET_PROVENANCE.md`. The demonstration videos likewise retain
+their separately documented provenance and reuse decisions.

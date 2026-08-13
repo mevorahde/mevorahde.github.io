@@ -34,6 +34,9 @@ APPLE_TOUCH_ICON_PATH = "apple-touch-icon.png"
 SQL_VIDEO_PATH = "assets/videos/sql-password-locker-demo.mp4"
 SQL_VIDEO_SHA256 = "400766cec39789ca797e517460a9def4d18570cda3a0657f948e7acef91718bf"
 SQL_VIDEO_POSTER = "assets/images/sql-password-locker-interface.png"
+MORNING_VIDEO_PATH = "assets/videos/morning-app-launcher-demo.mp4"
+MORNING_VIDEO_SHA256 = "cb8718666dbd0501360de71fcd4d6f85658b7b40ee13730b092e26b5ccade9e0"
+MORNING_VIDEO_POSTER = "assets/images/morning-app-launcher-interface.png"
 
 EXPECTED_FILES = {
     ".editorconfig",
@@ -50,6 +53,7 @@ EXPECTED_FILES = {
     "assets/images/morning-app-launcher-interface.png",
     "assets/images/sql-password-locker-interface.png",
     SQL_VIDEO_PATH,
+    MORNING_VIDEO_PATH,
     FAVICON_ICO_PATH,
     FAVICON_SVG_PATH,
     SOCIAL_IMAGE_PATH,
@@ -440,10 +444,12 @@ def parse_html() -> tuple[SiteHTMLParser, str]:
 
 
 def project_files() -> set[str]:
+    ignored_workspace_parts = {".git", ".idea", ".vscode"}
     return {
         path.relative_to(ROOT).as_posix()
         for path in ROOT.rglob("*")
-        if path.is_file() and ".git" not in path.relative_to(ROOT).parts
+        if path.is_file()
+        and not ignored_workspace_parts.intersection(path.relative_to(ROOT).parts)
     }
 
 
@@ -464,8 +470,8 @@ def verify_inventory(errors: list[str]) -> None:
         errors.append("PNG binary scope differs from the five approved PNG assets")
 
     mp4_files = {path for path in actual if (ROOT / path).read_bytes()[4:8] == b"ftyp"}
-    if mp4_files != {SQL_VIDEO_PATH}:
-        errors.append("MP4 binary scope differs from the one approved video asset")
+    if mp4_files != {SQL_VIDEO_PATH, MORNING_VIDEO_PATH}:
+        errors.append("MP4 binary scope differs from the two approved video assets")
 
     forbidden_parts = {"__pycache__", ".pytest_cache", "build", "dist", "htmlcov", ".venv"}
     artifacts = [path for path in actual if forbidden_parts.intersection(Path(path).parts)]
@@ -617,21 +623,36 @@ def verify_html(errors: list[str]) -> None:
 
     videos = [attrs for tag, attrs in parser.tags if tag == "video"]
     sources = [attrs for tag, attrs in parser.tags if tag == "source"]
-    expected_video = {
-        "controls": "",
-        "preload": "metadata",
-        "playsinline": "",
-        "poster": SQL_VIDEO_POSTER,
-        "aria-describedby": "sql-password-locker-demo-caption sql-password-locker-demo-transcript",
-    }
-    if videos != [expected_video]:
-        errors.append("SQL Password Locker video attributes differ from the approved accessible set")
-    if sources != [{"src": SQL_VIDEO_PATH, "type": "video/mp4"}]:
-        errors.append("SQL Password Locker video source or MIME type is incorrect")
-    if html.count(SQL_VIDEO_PATH) != 1:
-        errors.append("SQL Password Locker video path must be referenced exactly once")
-    if videos and any(attribute in videos[0] for attribute in ("autoplay", "loop")):
-        errors.append("SQL Password Locker video must not autoplay or loop")
+    expected_videos = [
+        {
+            "controls": "",
+            "preload": "metadata",
+            "playsinline": "",
+            "poster": SQL_VIDEO_POSTER,
+            "aria-describedby": "sql-password-locker-demo-caption sql-password-locker-demo-transcript",
+        },
+        {
+            "class": "video-wide",
+            "controls": "",
+            "preload": "metadata",
+            "playsinline": "",
+            "poster": MORNING_VIDEO_POSTER,
+            "aria-describedby": "morning-app-launcher-demo-caption morning-app-launcher-demo-transcript",
+        },
+    ]
+    if videos != expected_videos:
+        errors.append("video attributes differ from the approved accessible sets")
+    expected_sources = [
+        {"src": SQL_VIDEO_PATH, "type": "video/mp4"},
+        {"src": MORNING_VIDEO_PATH, "type": "video/mp4"},
+    ]
+    if sources != expected_sources:
+        errors.append("video sources or MIME types are incorrect")
+    for video_path in (SQL_VIDEO_PATH, MORNING_VIDEO_PATH):
+        if html.count(video_path) != 1:
+            errors.append(f"video path must be referenced exactly once: {video_path}")
+    if any(attribute in video for video in videos for attribute in ("autoplay", "loop")):
+        errors.append("portfolio videos must not autoplay or loop")
     transcript_requirements = (
         'id="sql-password-locker-demo-caption"',
         'id="sql-password-locker-demo-transcript"',
@@ -647,6 +668,20 @@ def verify_html(errors: list[str]) -> None:
     for requirement in transcript_requirements:
         if requirement not in html:
             errors.append(f"SQL Password Locker video caption or transcript is incomplete: {requirement}")
+    morning_transcript_requirements = (
+        'id="morning-app-launcher-demo-caption"',
+        'id="morning-app-launcher-demo-transcript"',
+        "Approximately 46 seconds",
+        "add it to the morning list",
+        "technical filename is replaced with a readable display name",
+        "Another application is then added",
+        "given its own readable name",
+        "opens the complete morning application list with that single click",
+        "Read the video transcript",
+    )
+    for requirement in morning_transcript_requirements:
+        if requirement not in html:
+            errors.append(f"Morning App Launcher video caption or transcript is incomplete: {requirement}")
 
     outbound = {
         link["href"]
@@ -729,7 +764,7 @@ def verify_html(errors: list[str]) -> None:
             errors.append(f"below-the-fold image is not lazy-loaded: {src}")
 
     html_images = {image.get("src") for image in parser.images}
-    expected_images = set(SCREENSHOTS) - {SQL_VIDEO_POSTER}
+    expected_images = set(SCREENSHOTS) - {SQL_VIDEO_POSTER, MORNING_VIDEO_POSTER}
     if html_images != expected_images:
         errors.append("HTML image set differs from the approved displayed screenshots")
 
@@ -753,9 +788,9 @@ def verify_screenshots(errors: list[str]) -> None:
             continue
         if dimensions != (expected["width"], expected["height"]):
             errors.append(f"screenshot dimensions mismatch: {relative}")
-        if relative == SQL_VIDEO_POSTER:
+        if relative in {SQL_VIDEO_POSTER, MORNING_VIDEO_POSTER}:
             videos = [attrs for tag, attrs in parser.tags if tag == "video"]
-            if len(videos) != 1 or videos[0].get("poster") != relative:
+            if sum(video.get("poster") == relative for video in videos) != 1:
                 errors.append(f"approved poster is not attached to the video: {relative}")
         else:
             html_image = html_images.get(relative, {})
@@ -814,6 +849,62 @@ def verify_sql_video(errors: list[str]) -> None:
     for evidence in (SQL_VIDEO_PATH, SQL_VIDEO_SHA256, "39.266667", "1440 × 1080", "959,618 bytes"):
         if evidence not in provenance:
             errors.append(f"video provenance is incomplete: {evidence}")
+
+
+def verify_morning_video(errors: list[str]) -> None:
+    path = ROOT / MORNING_VIDEO_PATH
+    if not path.is_file():
+        errors.append(f"approved video missing: {MORNING_VIDEO_PATH}")
+        return
+    if sha256(path) != MORNING_VIDEO_SHA256:
+        errors.append("Morning App Launcher video hash mismatch")
+    try:
+        details = inspect_mp4(path)
+    except ValueError as exc:
+        errors.append(str(exc))
+        return
+    if details["tracks"] != [{
+        "handler": "vide",
+        "codec": "avc1",
+        "width": 1920,
+        "height": 1080,
+        "duration": 45.86666666666667,
+    }]:
+        errors.append("Morning App Launcher video track inventory or properties are incorrect")
+    if not details["has_video_handler_name"]:
+        errors.append("Morning App Launcher video handler name is missing")
+    if not (6_000_000 <= details["size"] <= 7_000_000):
+        errors.append("Morning App Launcher video size is outside the approved bound")
+    if details["moov_offset"] < 0 or details["mdat_offset"] < 0 or details["moov_offset"] > details["mdat_offset"]:
+        errors.append("Morning App Launcher video is not fast-start optimized")
+    lower = details["lowercase_bytes"]
+    forbidden_metadata = (
+        b"clipchamp",
+        b"http://",
+        b"https://",
+        b"comment",
+        b"encoder",
+        b"lavf",
+        b"creation_time",
+        b"location",
+        b"com.apple.quicktime",
+        b"c:\\users\\",
+        b"/users/",
+    )
+    if any(marker in lower for marker in forbidden_metadata):
+        errors.append("Morning App Launcher video contains URL, comment, private, or machine metadata")
+    provenance = (ROOT / "ASSET_PROVENANCE.md").read_text(encoding="utf-8")
+    for evidence in (
+        MORNING_VIDEO_PATH,
+        MORNING_VIDEO_SHA256,
+        "b4e485912a74ee3bc6a38c3065fb696cc2a0f554f9d989ef3c8a217d080d4d0e",
+        "f46c30b1a2e5d0cedf21f4e29bb38d1947fac5f4bba2678af7d866a9f6f8e0a9",
+        "45.866667",
+        "1920 × 1080",
+        "6,509,590 bytes",
+    ):
+        if evidence not in provenance:
+            errors.append(f"Morning App Launcher video provenance is incomplete: {evidence}")
 
 
 def verify_social_image(errors: list[str]) -> None:
@@ -1035,6 +1126,7 @@ def run_checks() -> list[str]:
     if all((ROOT / path).is_file() for path in SCREENSHOTS):
         verify_screenshots(errors)
     verify_sql_video(errors)
+    verify_morning_video(errors)
     verify_social_image(errors)
     verify_favicons(errors)
     verify_supporting_files(errors)
@@ -1053,7 +1145,7 @@ def main() -> int:
     print("Site verification passed.")
     print(
         f"Verified {len(EXPECTED_FILES)} intended files, including three approved screenshots, "
-        "one reviewed video, one sanitized social-preview image, and three original favicon assets."
+        "two reviewed videos, one sanitized social-preview image, and three original favicon assets."
     )
     print("HTML, metadata, links, assets, privacy boundaries, and repository text policies passed.")
     return 0
