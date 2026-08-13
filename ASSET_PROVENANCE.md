@@ -1,6 +1,6 @@
 # Asset provenance
 
-Only the three project screenshots, one project demonstration video, one
+Only the three project screenshots, two project demonstration videos, one
 social-preview image, and favicon system listed below are approved for this
 portfolio site. Each project screenshot was copied byte-for-byte from a clean
 checkout at the stated public commit. The social card and favicon artwork were
@@ -49,6 +49,25 @@ does not imply that they inherit the website-code license.
 - Copied SHA-256: `ebe9f6e9294c17d4b53eee2f42ad3c024f3a34a4b51bea300ca93fe9a393c911`
 - Dimensions: 824 × 524 pixels
 - Reuse decision: Approved by the project owner for this portfolio. The screenshot contains a harmless example application name. No separate asset-license claim is made here.
+
+## Morning App Launcher demonstration video
+
+- Portfolio path: `assets/videos/morning-app-launcher-demo.mp4`
+- Source identifier: owner-reviewed local export, `Morning App Launcher Demo.mp4`
+- Source SHA-256: `b4e485912a74ee3bc6a38c3065fb696cc2a0f554f9d989ef3c8a217d080d4d0e`
+- Source size: 7,637,581 bytes
+- Source streams: one 1920 × 1080 H.264/AVC video stream (45.866667 seconds, 1,376 frames, 30 fps) and one 48 kHz stereo AAC audio stream (45.849 seconds)
+- Audio review: Every decoded sample in both audio channels is zero; FFmpeg reported minimum and maximum levels of 0, peak and RMS levels of negative infinity, zero crossings of 0, and a bit depth of 0. The completely silent stream was removed.
+- Source metadata: ISO Base Media container brands plus a Clipchamp URL in the encoder field and a promotional Clipchamp URL/comment
+- Processing: FFmpeg stream copy of the sole H.264 video stream, with audio, subtitles, attachments, data streams, chapters, inherited metadata, and nonessential source metadata excluded; fast-start layout places the `moov` atom before `mdat`. No video re-encoding was performed.
+- Video packet SHA-256 (source and final): `f46c30b1a2e5d0cedf21f4e29bb38d1947fac5f4bba2678af7d866a9f6f8e0a9`
+- Final streams: exactly one H.264/AVC `avc1` video stream using the `VideoHandler`; no audio, subtitle, attachment, or data streams
+- Final dimensions and duration: 1920 × 1080 pixels; 45.866667 seconds
+- Final metadata: ISO Base Media container brands and standard video handler/vendor fields only; no Clipchamp URL/comment, encoder, title, description, personal, machine, location, or creation-time metadata
+- Final size: 6,509,590 bytes
+- Final SHA-256: `cb8718666dbd0501360de71fcd4d6f85658b7b40ee13730b092e26b5ccade9e0`
+- Visual verification: Decoded frames 0, 688, and 1,375 from the source and final video are pixel-identical, with respective frame MD5 hashes `53bf222fc6ca104387be6dbd7689c657`, `401e0efd3a57d414816d65a3ef8b27f3`, and `38587b5746ecbf9faeea773dc3b486dd`. The identical source/final video packet hashes independently verify the copied H.264 payload.
+- Content and reuse decision: Approved by the project owner for this portfolio. The demonstration shows the reviewed Morning App Launcher workflow. No broader or separate asset-license claim is made here.
 
 ## Hyphy Oregon Conference Generator terminal
 

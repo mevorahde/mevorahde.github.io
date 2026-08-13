@@ -232,20 +232,20 @@ class PortfolioSiteTests(unittest.TestCase):
     def test_sql_password_locker_video_markup_and_transcript(self) -> None:
         videos = [attrs for tag, attrs in self.parser.tags if tag == "video"]
         self.assertEqual(
-            videos,
-            [{
+            videos[0],
+            {
                 "controls": "",
                 "preload": "metadata",
                 "playsinline": "",
                 "poster": verify_site.SQL_VIDEO_POSTER,
                 "aria-describedby": "sql-password-locker-demo-caption sql-password-locker-demo-transcript",
-            }],
+            },
         )
         self.assertNotIn("autoplay", videos[0])
         self.assertNotIn("loop", videos[0])
         self.assertEqual(
-            [attrs for tag, attrs in self.parser.tags if tag == "source"],
-            [{"src": verify_site.SQL_VIDEO_PATH, "type": "video/mp4"}],
+            [attrs for tag, attrs in self.parser.tags if tag == "source"][0],
+            {"src": verify_site.SQL_VIDEO_PATH, "type": "video/mp4"},
         )
         self.assertEqual(self.html.count(verify_site.SQL_VIDEO_PATH), 1)
         self.assertIn('id="sql-password-locker-demo-caption"', self.html)
@@ -259,6 +259,38 @@ class PortfolioSiteTests(unittest.TestCase):
             "clipboard copying with automatic clearing",
             "deletion",
             "vault locking",
+        ):
+            self.assertIn(phrase, self.html)
+
+    def test_morning_app_launcher_video_markup_and_transcript(self) -> None:
+        videos = [attrs for tag, attrs in self.parser.tags if tag == "video"]
+        self.assertEqual(
+            videos[1],
+            {
+                "class": "video-wide",
+                "controls": "",
+                "preload": "metadata",
+                "playsinline": "",
+                "poster": verify_site.MORNING_VIDEO_POSTER,
+                "aria-describedby": "morning-app-launcher-demo-caption morning-app-launcher-demo-transcript",
+            },
+        )
+        self.assertNotIn("autoplay", videos[1])
+        self.assertNotIn("loop", videos[1])
+        self.assertEqual(
+            [attrs for tag, attrs in self.parser.tags if tag == "source"][1],
+            {"src": verify_site.MORNING_VIDEO_PATH, "type": "video/mp4"},
+        )
+        self.assertEqual(self.html.count(verify_site.MORNING_VIDEO_PATH), 1)
+        self.assertIn('id="morning-app-launcher-demo-caption"', self.html)
+        self.assertIn('id="morning-app-launcher-demo-transcript"', self.html)
+        for phrase in (
+            "Approximately 46 seconds",
+            "add it to the morning list",
+            "technical filename is replaced with a readable display name",
+            "Another application is then added",
+            "given its own readable name",
+            "opens the complete morning application list with that single click",
         ):
             self.assertIn(phrase, self.html)
 
@@ -302,11 +334,51 @@ class PortfolioSiteTests(unittest.TestCase):
         ):
             self.assertNotIn(marker, lower)
 
+    def test_morning_app_launcher_mp4_is_exact_and_sanitized(self) -> None:
+        matches = [
+            path
+            for path in ROOT.rglob("morning-app-launcher-demo.mp4")
+            if path.is_file()
+        ]
+        self.assertEqual(matches, [ROOT / verify_site.MORNING_VIDEO_PATH])
+        path = matches[0]
+        self.assertEqual(verify_site.sha256(path), verify_site.MORNING_VIDEO_SHA256)
+        details = verify_site.inspect_mp4(path)
+        self.assertEqual(
+            details["tracks"],
+            [{
+                "handler": "vide",
+                "codec": "avc1",
+                "width": 1920,
+                "height": 1080,
+                "duration": 45.86666666666667,
+            }],
+        )
+        self.assertTrue(details["has_video_handler_name"])
+        self.assertLess(details["moov_offset"], details["mdat_offset"])
+        self.assertGreaterEqual(details["size"], 6_000_000)
+        self.assertLessEqual(details["size"], 7_000_000)
+        lower = details["lowercase_bytes"]
+        for marker in (
+            b"clipchamp",
+            b"http://",
+            b"https://",
+            b"comment",
+            b"encoder",
+            b"lavf",
+            b"creation_time",
+            b"location",
+            b"com.apple.quicktime",
+            b"c:\\users\\",
+            b"/users/",
+        ):
+            self.assertNotIn(marker, lower)
+
     def test_no_executable_or_external_runtime_content(self) -> None:
         tags = [tag for tag, _ in self.parser.tags]
         for forbidden in ("form", "iframe", "object", "embed", "audio", "canvas"):
             self.assertNotIn(forbidden, tags)
-        self.assertEqual(tags.count("video"), 1)
+        self.assertEqual(tags.count("video"), 2)
         self.assertNotIn("target=\"_blank\"", self.html)
         self.assertFalse(any(path.suffix == ".js" for path in ROOT.rglob("*") if path.is_file()))
 
