@@ -37,6 +37,10 @@ SQL_VIDEO_POSTER = "assets/images/sql-password-locker-interface.png"
 MORNING_VIDEO_PATH = "assets/videos/morning-app-launcher-demo.mp4"
 MORNING_VIDEO_SHA256 = "cb8718666dbd0501360de71fcd4d6f85658b7b40ee13730b092e26b5ccade9e0"
 MORNING_VIDEO_POSTER = "assets/images/morning-app-launcher-interface.png"
+PROJECT_VIDEO_PATH = "assets/videos/project-creation-automation-demo.mp4"
+PROJECT_VIDEO_SHA256 = "3176728063b3a4376bf8574a4132dcc08fabc5f0e137792073e0b8b8a8076fb8"
+PROJECT_VIDEO_POSTER = "assets/images/project-creation-automation-demo-poster.png"
+PROJECT_POSTER_SHA256 = "93978ccb4b95da739afc7b022a66bf5b2329bac364b61a7acb6785da03bb7c37"
 
 EXPECTED_FILES = {
     ".editorconfig",
@@ -54,6 +58,8 @@ EXPECTED_FILES = {
     "assets/images/sql-password-locker-interface.png",
     SQL_VIDEO_PATH,
     MORNING_VIDEO_PATH,
+    PROJECT_VIDEO_PATH,
+    PROJECT_VIDEO_POSTER,
     FAVICON_ICO_PATH,
     FAVICON_SVG_PATH,
     SOCIAL_IMAGE_PATH,
@@ -465,13 +471,13 @@ def verify_inventory(errors: list[str]) -> None:
     binary_files = {
         path for path in actual if (ROOT / path).read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
     }
-    approved_binary_files = set(SCREENSHOTS) | {SOCIAL_IMAGE_PATH, APPLE_TOUCH_ICON_PATH}
+    approved_binary_files = set(SCREENSHOTS) | {SOCIAL_IMAGE_PATH, APPLE_TOUCH_ICON_PATH, PROJECT_VIDEO_POSTER}
     if binary_files != approved_binary_files:
-        errors.append("PNG binary scope differs from the five approved PNG assets")
+        errors.append("PNG binary scope differs from the six approved PNG assets")
 
     mp4_files = {path for path in actual if (ROOT / path).read_bytes()[4:8] == b"ftyp"}
-    if mp4_files != {SQL_VIDEO_PATH, MORNING_VIDEO_PATH}:
-        errors.append("MP4 binary scope differs from the two approved video assets")
+    if mp4_files != {SQL_VIDEO_PATH, PROJECT_VIDEO_PATH, MORNING_VIDEO_PATH}:
+        errors.append("MP4 binary scope differs from the three approved video assets")
 
     forbidden_parts = {"__pycache__", ".pytest_cache", "build", "dist", "htmlcov", ".venv"}
     artifacts = [path for path in actual if forbidden_parts.intersection(Path(path).parts)]
@@ -636,6 +642,14 @@ def verify_html(errors: list[str]) -> None:
             "controls": "",
             "preload": "metadata",
             "playsinline": "",
+            "poster": PROJECT_VIDEO_POSTER,
+            "aria-describedby": "project-creation-demo-caption project-creation-demo-transcript",
+        },
+        {
+            "class": "video-wide",
+            "controls": "",
+            "preload": "metadata",
+            "playsinline": "",
             "poster": MORNING_VIDEO_POSTER,
             "aria-describedby": "morning-app-launcher-demo-caption morning-app-launcher-demo-transcript",
         },
@@ -644,11 +658,12 @@ def verify_html(errors: list[str]) -> None:
         errors.append("video attributes differ from the approved accessible sets")
     expected_sources = [
         {"src": SQL_VIDEO_PATH, "type": "video/mp4"},
+        {"src": PROJECT_VIDEO_PATH, "type": "video/mp4"},
         {"src": MORNING_VIDEO_PATH, "type": "video/mp4"},
     ]
     if sources != expected_sources:
         errors.append("video sources or MIME types are incorrect")
-    for video_path in (SQL_VIDEO_PATH, MORNING_VIDEO_PATH):
+    for video_path in (SQL_VIDEO_PATH, PROJECT_VIDEO_PATH, MORNING_VIDEO_PATH):
         if html.count(video_path) != 1:
             errors.append(f"video path must be referenced exactly once: {video_path}")
     if any(attribute in video for video in videos for attribute in ("autoplay", "loop")):
@@ -682,6 +697,20 @@ def verify_html(errors: list[str]) -> None:
     for requirement in morning_transcript_requirements:
         if requirement not in html:
             errors.append(f"Morning App Launcher video caption or transcript is incomplete: {requirement}")
+
+    project_section = html.split('id="project-creation-automation"', 1)
+    project_section = project_section[1].split("</article>", 1)[0] if len(project_section) == 2 else ""
+    for requirement in (
+        PROJECT_VIDEO_PATH, 'class="project-figure project-demo-wide"',
+        'id="project-creation-demo-caption"', 'id="project-creation-demo-transcript"',
+        "28 seconds", "0:00–0:10", "0:10–0:16", "0:16–0:21", "0:21–0:28",
+        "--ide vscode", "mutation_performed: no", "[y/N]", "initial commit created",
+        "No GitHub repository is created", "held for readability", "README.md", ".gitignore",
+        "Tim Eichinger", "Kalle Hallden", "Local-only, no IDE",
+    ):
+        if requirement not in project_section:
+            errors.append("Project Creation Automation demo or preserved project context is incomplete")
+            break
 
     outbound = {
         link["href"]
@@ -907,6 +936,47 @@ def verify_morning_video(errors: list[str]) -> None:
             errors.append(f"Morning App Launcher video provenance is incomplete: {evidence}")
 
 
+def verify_project_video(errors: list[str]) -> None:
+    path = ROOT / PROJECT_VIDEO_PATH
+    poster = ROOT / PROJECT_VIDEO_POSTER
+    if not path.is_file() or not poster.is_file():
+        errors.append("Project Creation Automation video or poster is missing")
+        return
+    if sha256(path) != PROJECT_VIDEO_SHA256 or sha256(poster) != PROJECT_POSTER_SHA256:
+        errors.append("Project Creation Automation video or poster hash mismatch")
+    try:
+        details = inspect_mp4(path)
+        png = inspect_png(poster)
+    except ValueError:
+        errors.append("Project Creation Automation media structure is invalid")
+        return
+    if details["tracks"] != [{
+        "handler": "vide", "codec": "avc1", "width": 1920, "height": 1080, "duration": 28.0,
+    }]:
+        errors.append("Project Creation Automation video track inventory or properties are incorrect")
+    if not details["has_video_handler_name"] or details["size"] != 835_356:
+        errors.append("Project Creation Automation video handler or size differs")
+    if not 0 <= details["moov_offset"] < details["mdat_offset"]:
+        errors.append("Project Creation Automation video is not fast-start optimized")
+    if any(marker in details["lowercase_bytes"] for marker in (
+        b"clipchamp", b"http://", b"https://", b"comment", b"encoder", b"lavf",
+        b"creation_time", b"location", b"com.apple.quicktime", b"c:\\users\\", b"/users/",
+    )):
+        errors.append("Project Creation Automation video contains forbidden metadata")
+    if (png["width"], png["height"], png["bit_depth"], png["color_type"]) != (1920, 1080, 8, 2):
+        errors.append("Project Creation Automation poster dimensions or format differ")
+    if set(png["chunks"]) != {"IHDR", "pHYs", "IDAT", "IEND"}:
+        errors.append("Project Creation Automation poster contains unexpected chunks")
+    provenance = (ROOT / "ASSET_PROVENANCE.md").read_text(encoding="utf-8")
+    for evidence in (
+        PROJECT_VIDEO_PATH, PROJECT_VIDEO_SHA256, PROJECT_VIDEO_POSTER, PROJECT_POSTER_SHA256,
+        "28.000000 seconds", "835,356 bytes", "edited pixels", "original recording remained unchanged",
+    ):
+        if evidence not in provenance:
+            errors.append("Project Creation Automation media provenance is incomplete")
+            break
+
+
 def verify_social_image(errors: list[str]) -> None:
     path = ROOT / SOCIAL_IMAGE_PATH
     if not path.is_file():
@@ -1127,6 +1197,7 @@ def run_checks() -> list[str]:
         verify_screenshots(errors)
     verify_sql_video(errors)
     verify_morning_video(errors)
+    verify_project_video(errors)
     verify_social_image(errors)
     verify_favicons(errors)
     verify_supporting_files(errors)
@@ -1145,7 +1216,7 @@ def main() -> int:
     print("Site verification passed.")
     print(
         f"Verified {len(EXPECTED_FILES)} intended files, including three approved screenshots, "
-        "two reviewed videos, one sanitized social-preview image, and three original favicon assets."
+        "three reviewed videos, one video poster, one sanitized social-preview image, and three original favicon assets."
     )
     print("HTML, metadata, links, assets, privacy boundaries, and repository text policies passed.")
     return 0

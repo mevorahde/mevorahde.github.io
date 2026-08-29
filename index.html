@@ -138,7 +138,7 @@
         </figure>
       </article>
 
-      <article class="project text-project">
+      <article class="project text-project" id="project-creation-automation">
         <div class="project-copy">
           <p class="project-number">02 · Safety-first developer tooling</p>
           <h3>Project Creation Automation</h3>
@@ -167,6 +167,20 @@
             <div><dt>Failure posture</dt><dd>Conservative and identity-aware</dd></div>
           </dl>
         </aside>
+        <figure class="project-figure project-demo-wide">
+          <video class="video-wide" controls preload="metadata" playsinline poster="assets/images/project-creation-automation-demo-poster.png" aria-describedby="project-creation-demo-caption project-creation-demo-transcript">
+            <source src="assets/videos/project-creation-automation-demo.mp4" type="video/mp4">
+            Your browser does not support HTML5 video. The text transcript below describes the demonstration.
+          </video>
+          <figcaption id="project-creation-demo-caption">28 seconds. This silent, captioned demonstration previews a local project plan, requires explicit confirmation, reports successful Git initialization and an initial commit, and opens the generated project in VS Code. No GitHub repository is created. Pauses and private screen details are omitted; the result is held for readability.</figcaption>
+          <details class="video-transcript" id="project-creation-demo-transcript">
+            <summary>Read the video transcript</summary>
+            <p><strong>0:00–0:10 — Preview the plan.</strong> The plan command previews creation of “portfolio-demo-project” with <code>--ide vscode</code>. The destination is redacted, GitHub creation is not requested, and <code>mutation_performed: no</code> confirms that the dry run makes no changes.</p>
+            <p><strong>0:10–0:16 — Confirm creation.</strong> The create command presents its plan and asks “Proceed with the planned creation? [y/N]”. Entering <code>y</code> approves local project creation.</p>
+            <p><strong>0:16–0:21 — Check the result.</strong> The output reports confirmation accepted, directory and starter files created, Git initialized, starter files staged, the index verified, the initial commit created, and the IDE launched. The operation succeeds with a local project; GitHub creation is not performed. This result frame is held for readability.</p>
+            <p><strong>0:21–0:28 — Start building.</strong> VS Code shows the generated project with <code>README.md</code> and <code>.gitignore</code>. The README contains the project heading and a placeholder description. The ending is held for readability.</p>
+          </details>
+        </figure>
       </article>
 
       <article class="project text-project">

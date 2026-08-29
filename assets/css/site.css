@@ -394,6 +394,12 @@ h4 {
   aspect-ratio: 16 / 9;
 }
 
+.project .project-demo-wide,
+.project:nth-of-type(even) .project-demo-wide {
+  grid-column: 1 / -1;
+  order: 3;
+}
+
 .figure-terminal img {
   background: #151719;
 }

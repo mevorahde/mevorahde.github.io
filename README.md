@@ -11,10 +11,15 @@ implementation, and local assets. It has no runtime dependencies or build step.
 It includes no analytics, trackers, cookies, forms, external fonts, or embedded
 third-party media.
 
-The SQL Password Locker and Morning App Launcher projects include local,
+The SQL Password Locker, Project Creation Automation, and Morning App Launcher projects include local,
 video-only MP4 demonstrations with native browser controls, poster images,
 visible captions, and adjacent text transcripts. Each reviewed asset's
 provenance and exact hash are recorded in `ASSET_PROVENANCE.md`.
+
+The 28-second Project Creation Automation demo shows a dry run, explicit
+confirmation, successful local Git project creation, and the optional VS Code
+launch. It does not create a GitHub repository. The captioned edit omits private
+screen details and uses a full-width player with a timestamped transcript.
 
 ## Local review
 
