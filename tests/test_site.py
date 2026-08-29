@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 import unittest
+from unittest.mock import patch
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -265,7 +266,7 @@ class PortfolioSiteTests(unittest.TestCase):
     def test_morning_app_launcher_video_markup_and_transcript(self) -> None:
         videos = [attrs for tag, attrs in self.parser.tags if tag == "video"]
         self.assertEqual(
-            videos[1],
+            videos[2],
             {
                 "class": "video-wide",
                 "controls": "",
@@ -275,10 +276,10 @@ class PortfolioSiteTests(unittest.TestCase):
                 "aria-describedby": "morning-app-launcher-demo-caption morning-app-launcher-demo-transcript",
             },
         )
-        self.assertNotIn("autoplay", videos[1])
-        self.assertNotIn("loop", videos[1])
+        self.assertNotIn("autoplay", videos[2])
+        self.assertNotIn("loop", videos[2])
         self.assertEqual(
-            [attrs for tag, attrs in self.parser.tags if tag == "source"][1],
+            [attrs for tag, attrs in self.parser.tags if tag == "source"][2],
             {"src": verify_site.MORNING_VIDEO_PATH, "type": "video/mp4"},
         )
         self.assertEqual(self.html.count(verify_site.MORNING_VIDEO_PATH), 1)
@@ -374,11 +375,77 @@ class PortfolioSiteTests(unittest.TestCase):
         ):
             self.assertNotIn(marker, lower)
 
+    def test_project_creation_demo_markup_context_and_order(self) -> None:
+        videos = [attrs for tag, attrs in self.parser.tags if tag == "video"]
+        self.assertEqual(videos[1], {
+            "class": "video-wide", "controls": "", "preload": "metadata", "playsinline": "",
+            "poster": verify_site.PROJECT_VIDEO_POSTER,
+            "aria-describedby": "project-creation-demo-caption project-creation-demo-transcript",
+        })
+        self.assertEqual(
+            [attrs for tag, attrs in self.parser.tags if tag == "source"][1],
+            {"src": verify_site.PROJECT_VIDEO_PATH, "type": "video/mp4"},
+        )
+        section = self.html.split('id="project-creation-automation"', 1)[1].split("</article>", 1)[0]
+        for phrase in (
+            "28 seconds", "No GitHub repository is created", "--ide vscode",
+            "mutation_performed: no", "[y/N]", "initial commit created", "held for readability",
+            "0:00–0:10", "0:10–0:16", "0:16–0:21", "0:21–0:28", "README.md", ".gitignore",
+            "Tim Eichinger", "Kalle Hallden", "GPL-3.0-or-later", "Local-only, no IDE",
+        ):
+            self.assertIn(phrase, section)
+        self.assertLess(section.index("</aside>"), section.index('<figure class="project-figure project-demo-wide">'))
+        self.assertEqual(self.html.count(verify_site.PROJECT_VIDEO_PATH), 1)
+        self.assertLess(self.html.index("<h3>SQL Password Locker</h3>"), self.html.index("<h3>Project Creation Automation</h3>"))
+        self.assertLess(self.html.index("<h3>Project Creation Automation</h3>"), self.html.index("<h3>NFL Pool Automation</h3>"))
+
+    def test_project_creation_demo_media_identity_and_structure(self) -> None:
+        path = ROOT / verify_site.PROJECT_VIDEO_PATH
+        self.assertEqual(verify_site.sha256(path), verify_site.PROJECT_VIDEO_SHA256)
+        details = verify_site.inspect_mp4(path)
+        self.assertEqual(details["size"], 835_356)
+        self.assertEqual(details["tracks"], [{
+            "handler": "vide", "codec": "avc1", "width": 1920, "height": 1080, "duration": 28.0,
+        }])
+        self.assertLess(details["moov_offset"], details["mdat_offset"])
+        self.assertTrue(details["has_video_handler_name"])
+        poster = ROOT / verify_site.PROJECT_VIDEO_POSTER
+        self.assertEqual(verify_site.sha256(poster), verify_site.PROJECT_POSTER_SHA256)
+        png = verify_site.inspect_png(poster)
+        self.assertEqual((png["width"], png["height"], png["bit_depth"], png["color_type"]), (1920, 1080, 8, 2))
+        self.assertEqual(set(png["chunks"]), {"IHDR", "pHYs", "IDAT", "IEND"})
+        errors = []
+        verify_site.verify_project_video(errors)
+        self.assertEqual(errors, [])
+
+    def test_project_creation_demo_rejects_missing_context_and_autoplay(self) -> None:
+        for modified in (
+            self.html.replace("No GitHub repository is created", "Remote creation demonstrated"),
+            self.html.replace('class="video-wide" controls', 'class="video-wide" autoplay controls', 1),
+            self.html.replace('project-creation-demo-transcript"', 'removed-transcript"'),
+        ):
+            with self.subTest(case=modified != self.html):
+                parser = verify_site.SiteHTMLParser()
+                parser.feed(modified)
+                parser.close()
+                with patch.object(verify_site, "parse_html", return_value=(parser, modified)):
+                    errors = []
+                    verify_site.verify_html(errors)
+                self.assertTrue(errors)
+
+    def test_project_creation_demo_full_width_and_existing_wide_video_rule(self) -> None:
+        css = (ROOT / "assets/css/site.css").read_text(encoding="utf-8")
+        self.assertIn(".project-figure .video-wide {\n  aspect-ratio: 16 / 9;\n}", css)
+        self.assertIn(
+            ".project .project-demo-wide,\n.project:nth-of-type(even) .project-demo-wide {\n"
+            "  grid-column: 1 / -1;\n  order: 3;\n}", css,
+        )
+
     def test_no_executable_or_external_runtime_content(self) -> None:
         tags = [tag for tag, _ in self.parser.tags]
         for forbidden in ("form", "iframe", "object", "embed", "audio", "canvas"):
             self.assertNotIn(forbidden, tags)
-        self.assertEqual(tags.count("video"), 2)
+        self.assertEqual(tags.count("video"), 3)
         self.assertNotIn("target=\"_blank\"", self.html)
         self.assertFalse(any(path.suffix == ".js" for path in ROOT.rglob("*") if path.is_file()))
 

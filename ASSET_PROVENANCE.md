@@ -1,6 +1,6 @@
 # Asset provenance
 
-Only the three project screenshots, two project demonstration videos, one
+Only the three project screenshots, three project demonstration videos, one video poster, one
 social-preview image, and favicon system listed below are approved for this
 portfolio site. Each project screenshot was copied byte-for-byte from a clean
 checkout at the stated public commit. The social card and favicon artwork were
@@ -38,6 +38,30 @@ does not imply that they inherit the website-code license.
 - Final SHA-256: `400766cec39789ca797e517460a9def4d18570cda3a0657f948e7acef91718bf`
 - Visual verification: Representative frames at the beginning, midpoint, and end were reviewed and match the approved source workflow; identical source/final video packet hashes additionally verify the copied H.264 payload.
 - Content and reuse decision: Approved by the project owner for this portfolio. All visible account and credential information is synthetic portfolio data. No broader or separate asset-license claim is made here.
+
+## Project Creation Automation demonstration video and poster
+
+- Portfolio video path: `assets/videos/project-creation-automation-demo.mp4`
+- Source identifier: owner-provided screen recording, `2026-08-29_16-28-50-20260829-233035.mp4`
+- Source SHA-256: `5779ba362b53a462b3b26498ff7e48c2324c346f953ff14c430c7876b82cafa5`
+- Source size: 2,060,785 bytes
+- Source streams: 1908 × 1026 H.264 video and stereo AAC audio; container duration approximately 57.794467 seconds
+- Processing: The recording was trimmed and cropped to exclude identifying terminal prompts, the VS Code Welcome screen, and file-hover paths. A title, four section headings, and explanatory captions were added. The result frame and ending were held for readability. The silent audio track and inherited metadata were removed, and fast-start layout places `moov` before `mdat`.
+- Re-encoding: Required for cropping, captions, and timing edits. The edited pixels and encoded video payload intentionally differ from the original; no source-to-edit pixel or packet identity is claimed. The original recording remained unchanged.
+- Reviewed edit identifier: `Project Creation Automation Demo.mp4`; SHA-256 `c8a04c6450d6d460d0f560846a87b6181cb45a5ccb6fb503aa091c3203cff1d5`, 838,120 bytes
+- Final sanitization: The reviewed edit's container tags were clean, but H.264 supplemental enhancement information (SEI) retained an encoder URL. FFmpeg stream copy with `filter_units=remove_types=6` removed that nonvisual SEI without re-encoding. All 840 decoded frame hashes and timing entries match the reviewed edit exactly. This comparison is edit-to-final, not raw-recording-to-final.
+- Final streams: exactly one H.264/AVC `avc1` video stream using `VideoHandler`; no audio, subtitle, attachment, or data streams
+- Final dimensions and duration: 1920 × 1080 pixels; 28.000000 seconds; 30 fps
+- Final size: 835,356 bytes
+- Final SHA-256: `3176728063b3a4376bf8574a4132dcc08fabc5f0e137792073e0b8b8a8076fb8`
+- Final metadata: ISO Base Media container brands and standard video handler/vendor fields only; no inherited encoder, URL, comment, personal, machine, location, or creation-time metadata
+- Visual review: All four edited sections were inspected at full size, with half-second contact-sheet sampling across the edit. The retained workflow shows planning, explicit confirmation, successful local creation, and VS Code. No GitHub repository is created in the demo.
+- Portfolio poster path: `assets/images/project-creation-automation-demo-poster.png`
+- Poster derivation: Frame at 2 seconds from the reviewed edited video, decoded as RGB PNG with inherited metadata excluded; no AI-generated replacement content
+- Poster dimensions: 1920 × 1080 pixels; 8-bit RGB
+- Poster chunks: `IHDR`, `pHYs` (pixel aspect information), `IDAT`, and `IEND`; no text, EXIF, comments, timestamps, or private chunks
+- Poster SHA-256: `93978ccb4b95da739afc7b022a66bf5b2329bac364b61a7acb6785da03bb7c37`
+- Content and reuse decision: The owner requested integration of this reviewed demo into the portfolio. The project remains a GPL-3.0-or-later modernization with Tim Eichinger and Kalle Hallden attribution retained in the project description. Captured third-party interface elements and the terminal background retain their respective rights; no broader asset-license or endorsement claim is made.
 
 ## Morning App Launcher interface
 
