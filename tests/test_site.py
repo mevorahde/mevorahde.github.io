@@ -441,11 +441,47 @@ class PortfolioSiteTests(unittest.TestCase):
             "  grid-column: 1 / -1;\n  order: 3;\n}", css,
         )
 
+    def test_hyphy_demo_markup_identity_structure_and_privacy(self) -> None:
+        videos = [attrs for tag, attrs in self.parser.tags if tag == "video"]
+        self.assertEqual(videos[3], {
+            "class": "video-wide", "controls": "", "preload": "metadata", "playsinline": "",
+            "poster": verify_site.HYPHY_VIDEO_POSTER,
+            "aria-describedby": "hyphy-demo-caption hyphy-demo-transcript",
+        })
+        self.assertEqual(
+            [attrs for tag, attrs in self.parser.tags if tag == "source"][3],
+            {"src": verify_site.HYPHY_VIDEO_PATH, "type": "video/mp4"},
+        )
+        section = self.html.split("<h3>Hyphy Oregon Conference Generator</h3>", 1)[1].split("</article>", 1)[0]
+        for phrase in (
+            "30 seconds", "fictional owners", "reproducible seed", "0:00–0:06",
+            "0:06–0:14", "0:14–0:19", "0:19–0:30", "20200830", "SplitMix64-v1",
+        ):
+            self.assertIn(phrase, section)
+        path = ROOT / verify_site.HYPHY_VIDEO_PATH
+        poster = ROOT / verify_site.HYPHY_VIDEO_POSTER
+        self.assertEqual(verify_site.sha256(path), verify_site.HYPHY_VIDEO_SHA256)
+        self.assertEqual(verify_site.sha256(poster), verify_site.HYPHY_POSTER_SHA256)
+        details = verify_site.inspect_mp4(path)
+        self.assertEqual(details["size"], 660_913)
+        self.assertEqual(details["tracks"], [{
+            "handler": "vide", "codec": "avc1", "width": 1920, "height": 1080, "duration": 30.0,
+        }])
+        self.assertLess(details["moov_offset"], details["mdat_offset"])
+        self.assertTrue(details["has_video_handler_name"])
+        self.assertNotIn(b"c:\\users\\", details["lowercase_bytes"])
+        png = verify_site.inspect_png(poster)
+        self.assertEqual((png["width"], png["height"], png["bit_depth"], png["color_type"]), (1920, 1080, 8, 2))
+        self.assertEqual(set(png["chunks"]), {"IHDR", "pHYs", "IDAT", "IEND"})
+        errors = []
+        verify_site.verify_hyphy_video(errors)
+        self.assertEqual(errors, [])
+
     def test_no_executable_or_external_runtime_content(self) -> None:
         tags = [tag for tag, _ in self.parser.tags]
         for forbidden in ("form", "iframe", "object", "embed", "audio", "canvas"):
             self.assertNotIn(forbidden, tags)
-        self.assertEqual(tags.count("video"), 3)
+        self.assertEqual(tags.count("video"), 4)
         self.assertNotIn("target=\"_blank\"", self.html)
         self.assertFalse(any(path.suffix == ".js" for path in ROOT.rglob("*") if path.is_file()))
 
