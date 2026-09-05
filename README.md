@@ -11,7 +11,7 @@ implementation, and local assets. It has no runtime dependencies or build step.
 It includes no analytics, trackers, cookies, forms, external fonts, or embedded
 third-party media.
 
-The SQL Password Locker, Project Creation Automation, and Morning App Launcher projects include local,
+The SQL Password Locker, Project Creation Automation, Morning App Launcher, and Hyphy Oregon Conference Generator projects include local,
 video-only MP4 demonstrations with native browser controls, poster images,
 visible captions, and adjacent text transcripts. Each reviewed asset's
 provenance and exact hash are recorded in `ASSET_PROVENANCE.md`.

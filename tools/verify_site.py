@@ -41,6 +41,10 @@ PROJECT_VIDEO_PATH = "assets/videos/project-creation-automation-demo.mp4"
 PROJECT_VIDEO_SHA256 = "3176728063b3a4376bf8574a4132dcc08fabc5f0e137792073e0b8b8a8076fb8"
 PROJECT_VIDEO_POSTER = "assets/images/project-creation-automation-demo-poster.png"
 PROJECT_POSTER_SHA256 = "93978ccb4b95da739afc7b022a66bf5b2329bac364b61a7acb6785da03bb7c37"
+HYPHY_VIDEO_PATH = "assets/videos/hyphy-oregon-conference-generator-demo.mp4"
+HYPHY_VIDEO_SHA256 = "2fc25d6bb88bc2f71c19b0535bd2ff344bcbff0a3996aa73a1b4781f0d362fd7"
+HYPHY_VIDEO_POSTER = "assets/images/hyphy-oregon-conference-generator-demo-poster.png"
+HYPHY_POSTER_SHA256 = "46fbc85b24a3369248356ed0a50cfadfe5caeac5e6b402ace78bb94281a02892"
 
 EXPECTED_FILES = {
     ".editorconfig",
@@ -60,6 +64,8 @@ EXPECTED_FILES = {
     MORNING_VIDEO_PATH,
     PROJECT_VIDEO_PATH,
     PROJECT_VIDEO_POSTER,
+    HYPHY_VIDEO_PATH,
+    HYPHY_VIDEO_POSTER,
     FAVICON_ICO_PATH,
     FAVICON_SVG_PATH,
     SOCIAL_IMAGE_PATH,
@@ -471,13 +477,13 @@ def verify_inventory(errors: list[str]) -> None:
     binary_files = {
         path for path in actual if (ROOT / path).read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
     }
-    approved_binary_files = set(SCREENSHOTS) | {SOCIAL_IMAGE_PATH, APPLE_TOUCH_ICON_PATH, PROJECT_VIDEO_POSTER}
+    approved_binary_files = set(SCREENSHOTS) | {SOCIAL_IMAGE_PATH, APPLE_TOUCH_ICON_PATH, PROJECT_VIDEO_POSTER, HYPHY_VIDEO_POSTER}
     if binary_files != approved_binary_files:
-        errors.append("PNG binary scope differs from the six approved PNG assets")
+        errors.append("PNG binary scope differs from the seven approved PNG assets")
 
     mp4_files = {path for path in actual if (ROOT / path).read_bytes()[4:8] == b"ftyp"}
-    if mp4_files != {SQL_VIDEO_PATH, PROJECT_VIDEO_PATH, MORNING_VIDEO_PATH}:
-        errors.append("MP4 binary scope differs from the three approved video assets")
+    if mp4_files != {SQL_VIDEO_PATH, PROJECT_VIDEO_PATH, MORNING_VIDEO_PATH, HYPHY_VIDEO_PATH}:
+        errors.append("MP4 binary scope differs from the four approved video assets")
 
     forbidden_parts = {"__pycache__", ".pytest_cache", "build", "dist", "htmlcov", ".venv"}
     artifacts = [path for path in actual if forbidden_parts.intersection(Path(path).parts)]
@@ -653,6 +659,14 @@ def verify_html(errors: list[str]) -> None:
             "poster": MORNING_VIDEO_POSTER,
             "aria-describedby": "morning-app-launcher-demo-caption morning-app-launcher-demo-transcript",
         },
+        {
+            "class": "video-wide",
+            "controls": "",
+            "preload": "metadata",
+            "playsinline": "",
+            "poster": HYPHY_VIDEO_POSTER,
+            "aria-describedby": "hyphy-demo-caption hyphy-demo-transcript",
+        },
     ]
     if videos != expected_videos:
         errors.append("video attributes differ from the approved accessible sets")
@@ -660,10 +674,11 @@ def verify_html(errors: list[str]) -> None:
         {"src": SQL_VIDEO_PATH, "type": "video/mp4"},
         {"src": PROJECT_VIDEO_PATH, "type": "video/mp4"},
         {"src": MORNING_VIDEO_PATH, "type": "video/mp4"},
+        {"src": HYPHY_VIDEO_PATH, "type": "video/mp4"},
     ]
     if sources != expected_sources:
         errors.append("video sources or MIME types are incorrect")
-    for video_path in (SQL_VIDEO_PATH, PROJECT_VIDEO_PATH, MORNING_VIDEO_PATH):
+    for video_path in (SQL_VIDEO_PATH, PROJECT_VIDEO_PATH, MORNING_VIDEO_PATH, HYPHY_VIDEO_PATH):
         if html.count(video_path) != 1:
             errors.append(f"video path must be referenced exactly once: {video_path}")
     if any(attribute in video for video in videos for attribute in ("autoplay", "loop")):
@@ -697,6 +712,15 @@ def verify_html(errors: list[str]) -> None:
     for requirement in morning_transcript_requirements:
         if requirement not in html:
             errors.append(f"Morning App Launcher video caption or transcript is incomplete: {requirement}")
+    hyphy_transcript_requirements = (
+        'id="hyphy-demo-caption"', 'id="hyphy-demo-transcript"', "30 seconds",
+        "ten-owner East and West draw", "fictional owners", "reproducible seed",
+        "0:00–0:06", "0:06–0:14", "0:14–0:19", "0:19–0:30",
+        "20200830", "SplitMix64-v1", "held for readability", "Read the video transcript",
+    )
+    for requirement in hyphy_transcript_requirements:
+        if requirement not in html:
+            errors.append(f"Hyphy video caption or transcript is incomplete: {requirement}")
 
     project_section = html.split('id="project-creation-automation"', 1)
     project_section = project_section[1].split("</article>", 1)[0] if len(project_section) == 2 else ""
@@ -793,7 +817,11 @@ def verify_html(errors: list[str]) -> None:
             errors.append(f"below-the-fold image is not lazy-loaded: {src}")
 
     html_images = {image.get("src") for image in parser.images}
-    expected_images = set(SCREENSHOTS) - {SQL_VIDEO_POSTER, MORNING_VIDEO_POSTER}
+    expected_images = set(SCREENSHOTS) - {
+        SQL_VIDEO_POSTER,
+        MORNING_VIDEO_POSTER,
+        "assets/images/hyphy-oregon-conference-generator-terminal.png",
+    }
     if html_images != expected_images:
         errors.append("HTML image set differs from the approved displayed screenshots")
 
@@ -821,7 +849,7 @@ def verify_screenshots(errors: list[str]) -> None:
             videos = [attrs for tag, attrs in parser.tags if tag == "video"]
             if sum(video.get("poster") == relative for video in videos) != 1:
                 errors.append(f"approved poster is not attached to the video: {relative}")
-        else:
+        elif relative in html_images:
             html_image = html_images.get(relative, {})
             if html_image.get("width") != str(expected["width"]):
                 errors.append(f"HTML width does not match PNG: {relative}")
@@ -974,6 +1002,48 @@ def verify_project_video(errors: list[str]) -> None:
     ):
         if evidence not in provenance:
             errors.append("Project Creation Automation media provenance is incomplete")
+            break
+
+
+def verify_hyphy_video(errors: list[str]) -> None:
+    path = ROOT / HYPHY_VIDEO_PATH
+    poster = ROOT / HYPHY_VIDEO_POSTER
+    if not path.is_file() or not poster.is_file():
+        errors.append("Hyphy video or poster is missing")
+        return
+    if sha256(path) != HYPHY_VIDEO_SHA256 or sha256(poster) != HYPHY_POSTER_SHA256:
+        errors.append("Hyphy video or poster hash mismatch")
+    try:
+        details = inspect_mp4(path)
+        png = inspect_png(poster)
+    except ValueError:
+        errors.append("Hyphy media structure is invalid")
+        return
+    if details["tracks"] != [{
+        "handler": "vide", "codec": "avc1", "width": 1920, "height": 1080, "duration": 30.0,
+    }]:
+        errors.append("Hyphy video track inventory or properties are incorrect")
+    if not details["has_video_handler_name"] or details["size"] != 660_913:
+        errors.append("Hyphy video handler or size differs")
+    if not 0 <= details["moov_offset"] < details["mdat_offset"]:
+        errors.append("Hyphy video is not fast-start optimized")
+    if any(marker in details["lowercase_bytes"] for marker in (
+        b"clipchamp", b"http://", b"https://", b"comment", b"encoder", b"lavf",
+        b"creation_time", b"location", b"com.apple.quicktime", b"c:\\users\\", b"/users/",
+    )):
+        errors.append("Hyphy video contains forbidden metadata")
+    if (png["width"], png["height"], png["bit_depth"], png["color_type"]) != (1920, 1080, 8, 2):
+        errors.append("Hyphy poster dimensions or format differ")
+    if set(png["chunks"]) != {"IHDR", "pHYs", "IDAT", "IEND"}:
+        errors.append("Hyphy poster contains unexpected chunks")
+    provenance = (ROOT / "ASSET_PROVENANCE.md").read_text(encoding="utf-8")
+    for evidence in (
+        HYPHY_VIDEO_PATH, HYPHY_VIDEO_SHA256, HYPHY_VIDEO_POSTER, HYPHY_POSTER_SHA256,
+        "30.000000 seconds", "660,913 bytes", "actual league draw and real owner names are not included",
+        "original recording remained unchanged",
+    ):
+        if evidence not in provenance:
+            errors.append("Hyphy media provenance is incomplete")
             break
 
 
@@ -1198,6 +1268,7 @@ def run_checks() -> list[str]:
     verify_sql_video(errors)
     verify_morning_video(errors)
     verify_project_video(errors)
+    verify_hyphy_video(errors)
     verify_social_image(errors)
     verify_favicons(errors)
     verify_supporting_files(errors)
@@ -1216,7 +1287,7 @@ def main() -> int:
     print("Site verification passed.")
     print(
         f"Verified {len(EXPECTED_FILES)} intended files, including three approved screenshots, "
-        "three reviewed videos, one video poster, one sanitized social-preview image, and three original favicon assets."
+        "four reviewed videos, two video posters, one sanitized social-preview image, and three original favicon assets."
     )
     print("HTML, metadata, links, assets, privacy boundaries, and repository text policies passed.")
     return 0

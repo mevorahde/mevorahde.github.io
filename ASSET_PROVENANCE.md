@@ -1,6 +1,6 @@
 # Asset provenance
 
-Only the three project screenshots, three project demonstration videos, one video poster, one
+Only the three project screenshots, four project demonstration videos, two video posters, one
 social-preview image, and favicon system listed below are approved for this
 portfolio site. Each project screenshot was copied byte-for-byte from a clean
 checkout at the stated public commit. The social card and favicon artwork were
@@ -103,6 +103,28 @@ does not imply that they inherit the website-code license.
 - Copied SHA-256: `4a9e4bd9a99d367726b44a986e1abd13e9f6331e1adcd3fb31eb16e32a128e9b`
 - Dimensions: 582 × 608 pixels
 - Reuse decision: Approved by the project owner for this portfolio draft. It shows deterministic output captured from the functionally identical release candidate, not a separate final-release test.
+
+## Hyphy Oregon Conference Generator demonstration video and poster
+
+- Portfolio video path: `assets/videos/hyphy-oregon-conference-generator-demo.mp4`
+- Source identifier: owner-provided screen recording, `2026-08-30_09-25-05-20260830-162517.mp4`
+- Source SHA-256: `c3b7d17df48d34067538eb645979a198b118fc6189071199724b4e288f2b171e`
+- Source size: 979,324 bytes
+- Source streams: 1114 × 626 H.264 video at approximately 29.97 fps and AAC audio; container duration 51.200000 seconds
+- Processing: The recording was cropped to exclude the terminal tab bar and identifying path, then divided into four captioned sections. Name entry was accelerated and the final result was held for readability. Audio, inherited metadata, and nonvisual H.264 SEI were removed. Fast-start layout places `moov` before `mdat`.
+- Re-encoding: Required for cropping, captions, layout, and timing edits. The edited pixels and encoded video payload intentionally differ from the original; no source-to-edit pixel or packet identity is claimed. The original recording remained unchanged.
+- Content: The demonstration uses ten fictional owner names and reproducible seed `20200830`; the actual league draw and real owner names are not included.
+- Final streams: exactly one 1920 × 1080 H.264/AVC `avc1` video stream using `VideoHandler`; no audio, subtitle, attachment, or data streams
+- Final dimensions and duration: 1920 × 1080 pixels; 30.000000 seconds; 30 fps
+- Final size: 660,913 bytes
+- Final SHA-256: `2fc25d6bb88bc2f71c19b0535bd2ff344bcbff0a3996aa73a1b4781f0d362fd7`
+- Final metadata: ISO Base Media container brands and standard video handler/vendor fields only; no inherited encoder, URL, comment, personal, machine, location, or creation-time metadata
+- Visual review: All four edited sections and the complete East/West result were reviewed and approved by the owner. The published edit contains no terminal path or actual league-owner information.
+- Portfolio poster path: `assets/images/hyphy-oregon-conference-generator-demo-poster.png`
+- Poster derivation: Frame at 25 seconds from the approved edited video, decoded as RGB PNG with inherited metadata excluded; no AI-generated replacement content
+- Poster dimensions: 1920 × 1080 pixels; 8-bit RGB
+- Poster SHA-256: `46fbc85b24a3369248356ed0a50cfadfe5caeac5e6b402ace78bb94281a02892`
+- Content and reuse decision: David owns the source recording and approved this edited demonstration and poster for the portfolio. The fictional names are intentionally public demonstration data.
 
 ## David Mevorah portfolio social preview
 
