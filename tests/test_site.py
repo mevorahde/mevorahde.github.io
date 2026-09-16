@@ -266,7 +266,7 @@ class PortfolioSiteTests(unittest.TestCase):
     def test_morning_app_launcher_video_markup_and_transcript(self) -> None:
         videos = [attrs for tag, attrs in self.parser.tags if tag == "video"]
         self.assertEqual(
-            videos[2],
+            videos[3],
             {
                 "class": "video-wide",
                 "controls": "",
@@ -276,10 +276,10 @@ class PortfolioSiteTests(unittest.TestCase):
                 "aria-describedby": "morning-app-launcher-demo-caption morning-app-launcher-demo-transcript",
             },
         )
-        self.assertNotIn("autoplay", videos[2])
-        self.assertNotIn("loop", videos[2])
+        self.assertNotIn("autoplay", videos[3])
+        self.assertNotIn("loop", videos[3])
         self.assertEqual(
-            [attrs for tag, attrs in self.parser.tags if tag == "source"][2],
+            [attrs for tag, attrs in self.parser.tags if tag == "source"][3],
             {"src": verify_site.MORNING_VIDEO_PATH, "type": "video/mp4"},
         )
         self.assertEqual(self.html.count(verify_site.MORNING_VIDEO_PATH), 1)
@@ -443,13 +443,13 @@ class PortfolioSiteTests(unittest.TestCase):
 
     def test_hyphy_demo_markup_identity_structure_and_privacy(self) -> None:
         videos = [attrs for tag, attrs in self.parser.tags if tag == "video"]
-        self.assertEqual(videos[3], {
+        self.assertEqual(videos[4], {
             "class": "video-wide", "controls": "", "preload": "metadata", "playsinline": "",
             "poster": verify_site.HYPHY_VIDEO_POSTER,
             "aria-describedby": "hyphy-demo-caption hyphy-demo-transcript",
         })
         self.assertEqual(
-            [attrs for tag, attrs in self.parser.tags if tag == "source"][3],
+            [attrs for tag, attrs in self.parser.tags if tag == "source"][4],
             {"src": verify_site.HYPHY_VIDEO_PATH, "type": "video/mp4"},
         )
         section = self.html.split("<h3>Hyphy Oregon Conference Generator</h3>", 1)[1].split("</article>", 1)[0]
@@ -481,7 +481,7 @@ class PortfolioSiteTests(unittest.TestCase):
         tags = [tag for tag, _ in self.parser.tags]
         for forbidden in ("form", "iframe", "object", "embed", "audio", "canvas"):
             self.assertNotIn(forbidden, tags)
-        self.assertEqual(tags.count("video"), 4)
+        self.assertEqual(tags.count("video"), 5)
         self.assertNotIn("target=\"_blank\"", self.html)
         self.assertFalse(any(path.suffix == ".js" for path in ROOT.rglob("*") if path.is_file()))
 
