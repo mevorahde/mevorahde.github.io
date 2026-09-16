@@ -1,6 +1,6 @@
 # Asset provenance
 
-Only the three project screenshots, four project demonstration videos, two video posters, one
+Only the three project screenshots, five project demonstration videos, three video posters, one
 social-preview image, and favicon system listed below are approved for this
 portfolio site. Each project screenshot was copied byte-for-byte from a clean
 checkout at the stated public commit. The social card and favicon artwork were
@@ -149,4 +149,17 @@ does not imply that they inherit the website-code license.
 - Sanitization: Raster files contain only required image data and structural chunks, with metadata, comments, timestamps, text, profiles, EXIF, private chunks, and machine paths omitted.
 - Ownership and approval: David owns the favicon artwork and approves its use with the portfolio.
 
-No workbook material or unlisted binary asset is included in this portfolio.
+## NFL Pool Automation demonstration video and poster
+
+- Portfolio video path: `assets/videos/nfl-pool-automation-demo.mp4`
+- Source: owner-approved edited recording, `NFL Pool Automation Demo.mp4`; SHA-256 `bbd97d0ea4546d7ad368767bd929734d9603d7588e6621cee4050efa3476cc66`.
+- Raw recording SHA-256: `00a32df01b219e23fb29e066229d8fb4a4cafa3329d0a64a9dd1ff4015f176a1`.
+- Editing: Four explanatory captions, opaque identifying-path covers, and edge trims; audio and inherited recording metadata removed. Re-encoding was required for these visual edits.
+- Portfolio processing: Stream-copy removal of nonvisual H.264 SEI encoder information, with fast-start layout. The approved Desktop copy and original recording remained unchanged.
+- Final video: 1662 × 868 pixels, 46.166667 seconds, one H.264/AVC stream; no audio. Size: 4,788,110 bytes.
+- Final SHA-256: `c99dbbb1cfce5cf4d466259afd2ce1860b81442f9b775eb407d2b7b40819ab93`.
+- Poster: `assets/images/nfl-pool-automation-demo-poster.png`, frame at 20 seconds, 1662 × 868 RGB PNG.
+- Poster SHA-256: `50053359753638ae03855e1b2c1716b5158b3b2db8cbbd690d269275c2019619`.
+- Content and reuse: The owner approved the visible workbook recording for this portfolio. Week 1 picks, scores, and totals precede the demonstrated run; the demo shows generation of Week 2 and comparison with ScoresAndOdds. No claim of automated score entry is made. Third-party interfaces retain their respective rights; no affiliation or endorsement is implied.
+
+No downloadable workbook or unlisted binary asset is included in this portfolio.

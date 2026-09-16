@@ -394,6 +394,10 @@ h4 {
   aspect-ratio: 16 / 9;
 }
 
+.project-figure .video-nfl {
+  aspect-ratio: 831 / 434;
+}
+
 .project .project-demo-wide,
 .project:nth-of-type(even) .project-demo-wide {
   grid-column: 1 / -1;

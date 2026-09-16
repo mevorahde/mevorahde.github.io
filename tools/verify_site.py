@@ -41,6 +41,10 @@ PROJECT_VIDEO_PATH = "assets/videos/project-creation-automation-demo.mp4"
 PROJECT_VIDEO_SHA256 = "3176728063b3a4376bf8574a4132dcc08fabc5f0e137792073e0b8b8a8076fb8"
 PROJECT_VIDEO_POSTER = "assets/images/project-creation-automation-demo-poster.png"
 PROJECT_POSTER_SHA256 = "93978ccb4b95da739afc7b022a66bf5b2329bac364b61a7acb6785da03bb7c37"
+NFL_VIDEO_PATH = "assets/videos/nfl-pool-automation-demo.mp4"
+NFL_VIDEO_POSTER = "assets/images/nfl-pool-automation-demo-poster.png"
+NFL_VIDEO_SHA256 = "c99dbbb1cfce5cf4d466259afd2ce1860b81442f9b775eb407d2b7b40819ab93"
+NFL_POSTER_SHA256 = "50053359753638ae03855e1b2c1716b5158b3b2db8cbbd690d269275c2019619"
 HYPHY_VIDEO_PATH = "assets/videos/hyphy-oregon-conference-generator-demo.mp4"
 HYPHY_VIDEO_SHA256 = "2fc25d6bb88bc2f71c19b0535bd2ff344bcbff0a3996aa73a1b4781f0d362fd7"
 HYPHY_VIDEO_POSTER = "assets/images/hyphy-oregon-conference-generator-demo-poster.png"
@@ -66,6 +70,8 @@ EXPECTED_FILES = {
     PROJECT_VIDEO_POSTER,
     HYPHY_VIDEO_PATH,
     HYPHY_VIDEO_POSTER,
+    NFL_VIDEO_PATH,
+    NFL_VIDEO_POSTER,
     FAVICON_ICO_PATH,
     FAVICON_SVG_PATH,
     SOCIAL_IMAGE_PATH,
@@ -477,13 +483,13 @@ def verify_inventory(errors: list[str]) -> None:
     binary_files = {
         path for path in actual if (ROOT / path).read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
     }
-    approved_binary_files = set(SCREENSHOTS) | {SOCIAL_IMAGE_PATH, APPLE_TOUCH_ICON_PATH, PROJECT_VIDEO_POSTER, HYPHY_VIDEO_POSTER}
+    approved_binary_files = set(SCREENSHOTS) | {SOCIAL_IMAGE_PATH, APPLE_TOUCH_ICON_PATH, PROJECT_VIDEO_POSTER, HYPHY_VIDEO_POSTER, NFL_VIDEO_POSTER}
     if binary_files != approved_binary_files:
         errors.append("PNG binary scope differs from the seven approved PNG assets")
 
     mp4_files = {path for path in actual if (ROOT / path).read_bytes()[4:8] == b"ftyp"}
-    if mp4_files != {SQL_VIDEO_PATH, PROJECT_VIDEO_PATH, MORNING_VIDEO_PATH, HYPHY_VIDEO_PATH}:
-        errors.append("MP4 binary scope differs from the four approved video assets")
+    if mp4_files != {SQL_VIDEO_PATH, PROJECT_VIDEO_PATH, MORNING_VIDEO_PATH, HYPHY_VIDEO_PATH, NFL_VIDEO_PATH}:
+        errors.append("MP4 binary scope differs from the five approved video assets")
 
     forbidden_parts = {"__pycache__", ".pytest_cache", "build", "dist", "htmlcov", ".venv"}
     artifacts = [path for path in actual if forbidden_parts.intersection(Path(path).parts)]
@@ -668,6 +674,11 @@ def verify_html(errors: list[str]) -> None:
             "aria-describedby": "hyphy-demo-caption hyphy-demo-transcript",
         },
     ]
+    expected_videos.insert(2, {
+        "class": "video-nfl", "controls": "", "preload": "metadata", "playsinline": "",
+        "poster": NFL_VIDEO_POSTER,
+        "aria-describedby": "nfl-demo-caption nfl-demo-transcript",
+    })
     if videos != expected_videos:
         errors.append("video attributes differ from the approved accessible sets")
     expected_sources = [
@@ -676,9 +687,10 @@ def verify_html(errors: list[str]) -> None:
         {"src": MORNING_VIDEO_PATH, "type": "video/mp4"},
         {"src": HYPHY_VIDEO_PATH, "type": "video/mp4"},
     ]
+    expected_sources.insert(2, {"src": NFL_VIDEO_PATH, "type": "video/mp4"})
     if sources != expected_sources:
         errors.append("video sources or MIME types are incorrect")
-    for video_path in (SQL_VIDEO_PATH, PROJECT_VIDEO_PATH, MORNING_VIDEO_PATH, HYPHY_VIDEO_PATH):
+    for video_path in (SQL_VIDEO_PATH, PROJECT_VIDEO_PATH, MORNING_VIDEO_PATH, HYPHY_VIDEO_PATH, NFL_VIDEO_PATH):
         if html.count(video_path) != 1:
             errors.append(f"video path must be referenced exactly once: {video_path}")
     if any(attribute in video for video in videos for attribute in ("autoplay", "loop")):
@@ -1047,6 +1059,34 @@ def verify_hyphy_video(errors: list[str]) -> None:
             break
 
 
+def verify_nfl_video(errors: list[str]) -> None:
+    path, poster = ROOT / NFL_VIDEO_PATH, ROOT / NFL_VIDEO_POSTER
+    if not path.is_file() or not poster.is_file():
+        errors.append("NFL demo media missing")
+        return
+    if sha256(path) != NFL_VIDEO_SHA256 or sha256(poster) != NFL_POSTER_SHA256:
+        errors.append("NFL demo media hash mismatch")
+    details, png = inspect_mp4(path), inspect_png(poster)
+    tracks = details["tracks"]
+    if (len(tracks) != 1 or tracks[0]["handler"] != "vide"
+            or tracks[0]["codec"] != "avc1" or tracks[0]["width"] != 1662
+            or tracks[0]["height"] != 868 or abs(tracks[0]["duration"] - 46.5) > 0.001):
+        errors.append("NFL demo track properties differ")
+    if not 0 <= details["moov_offset"] < details["mdat_offset"]:
+        errors.append("NFL demo requires fast-start")
+    if any(marker in details["lowercase_bytes"] for marker in (
+        b"http://", b"https://", b"encoder", b"lavf", b"creation_time", b"c:\\users\\",
+    )):
+        errors.append("NFL demo contains forbidden metadata")
+    if (png["width"], png["height"]) != (1662, 868):
+        errors.append("NFL poster dimensions differ")
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    for required in ('id="nfl-demo-transcript"', 'id="nfl-demo-caption"',
+                     "already filled in before this run", "ScoresAndOdds"):
+        if required not in html:
+            errors.append("NFL transcript is incomplete")
+
+
 def verify_social_image(errors: list[str]) -> None:
     path = ROOT / SOCIAL_IMAGE_PATH
     if not path.is_file():
@@ -1269,6 +1309,7 @@ def run_checks() -> list[str]:
     verify_morning_video(errors)
     verify_project_video(errors)
     verify_hyphy_video(errors)
+    verify_nfl_video(errors)
     verify_social_image(errors)
     verify_favicons(errors)
     verify_supporting_files(errors)
@@ -1287,7 +1328,7 @@ def main() -> int:
     print("Site verification passed.")
     print(
         f"Verified {len(EXPECTED_FILES)} intended files, including three approved screenshots, "
-        "four reviewed videos, two video posters, one sanitized social-preview image, and three original favicon assets."
+        "five reviewed videos, three video posters, one sanitized social-preview image, and three original favicon assets."
     )
     print("HTML, metadata, links, assets, privacy boundaries, and repository text policies passed.")
     return 0
